@@ -253,7 +253,7 @@ class TestFindWavFile:
             category="human",
             node_name="rpi_sunset_bay",
             timestamp="2024_08_07_11_23_23_PST",
-            uri="",
+            uri="https://example.com/2",
             description="",
             notes="fp_machine_only",
         )
@@ -349,6 +349,18 @@ class TestModelResultProperties:
         r = ModelResult(model_type="fastai", total=10, correct=8, skipped=0)
         assert abs(r.accuracy - 0.8) < 1e-9
 
+    def test_exact_accuracy_none_when_no_evaluated(self):
+        """exact_accuracy is None when evaluated == 0."""
+        from compare_models import ModelResult
+        r = ModelResult(model_type="fastai", total=5, skipped=5)
+        assert r.exact_accuracy is None
+
+    def test_exact_accuracy_correct_fraction(self):
+        """exact_accuracy is exact_correct/evaluated."""
+        from compare_models import ModelResult
+        r = ModelResult(model_type="fastai", total=10, exact_correct=3, skipped=2)
+        assert abs(r.exact_accuracy - 0.375) < 1e-9
+
     def test_false_positive_rate_none_when_no_evaluated(self):
         """false_positive_rate is None when evaluated == 0."""
         from compare_models import ModelResult
@@ -429,7 +441,7 @@ class TestEvaluateModel:
             category="human",
             node_name="rpi_sunset_bay",
             timestamp="2024_08_07_11_23_23_PST",
-            uri="",
+            uri="https://example.com/2",
             description="",
             notes="fp_machine_only",
         )
@@ -537,7 +549,7 @@ class TestEvaluateModel:
             category="human",
             node_name="rpi_sunset_bay",
             timestamp="2024_08_07_11_23_23_PST",
-            uri="",
+            uri="https://example.com/2",
             description="",
             notes="fp_machine_only",
         )
@@ -550,6 +562,32 @@ class TestEvaluateModel:
         assert result.correct == 1
         assert result.false_positives == 0
         assert result.false_negatives == 0
+        assert result.exact_correct == 0
+        assert len(result.wrong_class_detections) == 1
+        assert result.wrong_class_detections[0].uri == "https://example.com/2"
+        assert result.wrong_class_detections[0].actual_label == "human"
+        assert result.wrong_class_detections[0].predicted_label == "water"
+
+    def test_records_exact_match_when_predicted_class_matches(self, tmp_path):
+        """Exact-class matches increment exact_correct and do not add a wrong-class URI."""
+        from compare_models import TestSample, evaluate_model
+
+        sample = TestSample(
+            category="humpback",
+            node_name="rpi_orcasound_lab",
+            timestamp="2023_10_28_07_33_52_PST",
+            uri="https://example.com/3",
+            description="",
+            notes="tp_human_only",
+        )
+        wav_dir = self._make_wav_files(tmp_path, [sample])
+
+        mock_result = {"global_prediction_label": "humpback", "global_confidence": 0.8, "predict_time": 1.8}
+        with patch("compare_models.run_inference", return_value=mock_result):
+            result = evaluate_model("podsai", "/path/to/model", [sample], wav_dir)
+
+        assert result.exact_correct == 1
+        assert result.wrong_class_detections == []
 
     def test_total_equals_sample_count(self, tmp_path):
         """ModelResult.total always equals the number of samples passed."""
@@ -620,6 +658,14 @@ class TestPrintSummary:
         captured = capsys.readouterr().out
         assert "80.0%" in captured
 
+    def test_prints_exact_accuracy_percentage(self, capsys):
+        """print_summary shows the exact-class accuracy as a percentage."""
+        from compare_models import ModelResult, print_summary
+        results = [ModelResult(model_type="podsai", total=10, correct=8, exact_correct=3, skipped=0)]
+        print_summary(results)
+        captured = capsys.readouterr().out
+        assert "30.0%" in captured
+
     def test_prints_na_when_no_evaluated_samples(self, capsys):
         """print_summary shows N/A for accuracy when all samples are skipped."""
         from compare_models import ModelResult, print_summary
@@ -644,6 +690,29 @@ class TestPrintSummary:
         captured = capsys.readouterr().out
         assert "Definitions:" in captured
         assert "false+" in captured or "FP" in captured
+
+    def test_prints_wrong_class_detection_uri(self, capsys):
+        """print_summary lists the URI for detections with exact-class mismatches."""
+        from compare_models import MisclassifiedDetection, ModelResult, print_summary
+        results = [
+            ModelResult(
+                model_type="podsai",
+                total=1,
+                correct=1,
+                exact_correct=0,
+                wrong_class_detections=[
+                    MisclassifiedDetection(
+                        uri="https://example.com/2",
+                        actual_label="human",
+                        predicted_label="water",
+                    )
+                ],
+            )
+        ]
+        print_summary(results)
+        captured = capsys.readouterr().out
+        assert "Wrong-class detections for podsai:" in captured
+        assert "https://example.com/2" in captured
 
     def test_prints_avg_time(self, capsys):
         """print_summary includes average time column."""

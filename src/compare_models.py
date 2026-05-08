@@ -45,16 +45,27 @@ class TestSample:
 
 
 @dataclass
+class MisclassifiedDetection:
+    """A detection whose predicted class does not match its labeled class."""
+
+    uri: str
+    actual_label: str
+    predicted_label: str
+
+
+@dataclass
 class ModelResult:
     """Accumulated results for a single model across all test samples."""
 
     model_type: str
     total: int = 0
     correct: int = 0
+    exact_correct: int = 0
     false_positives: int = 0
     false_negatives: int = 0
     skipped: int = 0
     predict_times: list[float] = field(default_factory=list)
+    wrong_class_detections: list[MisclassifiedDetection] = field(default_factory=list)
     # Maps actual_label -> {predicted_label -> count} for each evaluated sample.
     confusion_matrix: dict[str, dict[str, int]] = field(default_factory=dict)
 
@@ -69,6 +80,13 @@ class ModelResult:
         if self.evaluated == 0:
             return None
         return self.correct / self.evaluated
+
+    @property
+    def exact_accuracy(self) -> Optional[float]:
+        """Fraction of evaluated samples whose predicted class exactly matched."""
+        if self.evaluated == 0:
+            return None
+        return self.exact_correct / self.evaluated
 
     @property
     def false_positive_rate(self) -> Optional[float]:
@@ -218,6 +236,16 @@ def evaluate_model(
 
         predicted_label = inference_result.get("global_prediction_label", "")
         predicted_resident = is_resident_prediction(predicted_label, model_type)
+        if predicted_label == sample.category:
+            result.exact_correct += 1
+        else:
+            result.wrong_class_detections.append(
+                MisclassifiedDetection(
+                    uri=sample.uri,
+                    actual_label=sample.category,
+                    predicted_label=predicted_label,
+                )
+            )
 
         if predicted_resident == expected_resident:
             result.correct += 1
@@ -296,6 +324,24 @@ def print_confusion_matrix(result: ModelResult) -> None:
         print()
 
 
+def print_wrong_class_detections(result: ModelResult) -> None:
+    """
+    Print the URI for each detection whose predicted class was wrong.
+
+    Args:
+        result: ModelResult whose wrong-class detections to display.
+    """
+    if not result.wrong_class_detections:
+        return
+
+    print(f"Wrong-class detections for {result.model_type}:")
+    for detection in result.wrong_class_detections:
+        print(
+            f"  {detection.uri} "
+            f"(actual={detection.actual_label}, predicted={detection.predicted_label})"
+        )
+
+
 def print_summary(results: list[ModelResult]) -> None:
     """
     Print a formatted comparison table for all model results.
@@ -309,29 +355,33 @@ def print_summary(results: list[ModelResult]) -> None:
     print("=" * 90)
     header = (
         f"{'Model':<15} {'Evaluated':>9} {'Correct':>9} {'Accuracy':>9}"
-        f" {'FP':>6} {'FP%':>7} {'FN':>6} {'FN%':>7} {'Avg Time':>10}"
+        f" {'Exact':>7} {'Exact%':>7} {'FP':>6} {'FP%':>7}"
+        f" {'FN':>6} {'FN%':>7} {'Avg Time':>10}"
     )
     print(header)
-    print("-" * 90)
+    print("-" * 107)
 
     for r in results:
         evaluated = r.evaluated
         accuracy = f"{r.accuracy:.1%}" if r.accuracy is not None else "N/A"
+        exact_accuracy = f"{r.exact_accuracy:.1%}" if r.exact_accuracy is not None else "N/A"
         fp_rate = f"{r.false_positive_rate:.1%}" if r.false_positive_rate is not None else "N/A"
         fn_rate = f"{r.false_negative_rate:.1%}" if r.false_negative_rate is not None else "N/A"
         avg_time = f"{r.avg_predict_time:.2f}s" if r.avg_predict_time is not None else "N/A"
 
         print(
             f"{r.model_type:<15} {evaluated:>9} {r.correct:>9} {accuracy:>9}"
-            f" {r.false_positives:>6} {fp_rate:>7} {r.false_negatives:>6} {fn_rate:>7} {avg_time:>10}"
+            f" {r.exact_correct:>7} {exact_accuracy:>7} {r.false_positives:>6}"
+            f" {fp_rate:>7} {r.false_negatives:>6} {fn_rate:>7} {avg_time:>10}"
         )
         if r.skipped:
             print(f"  ({r.skipped} skipped due to missing WAV or inference error)")
 
-    print("=" * 90)
+    print("=" * 107)
     print()
     print("Definitions:")
     print("  Correct      = predicted resident when expected, or non-resident when expected")
+    print("  Exact        = predicted class exactly matched the labeled detection class")
     print("  FP (false+)  = predicted resident when correct class was non-resident")
     print("  FN (false-)  = predicted non-resident when correct class was resident")
     print("  Avg Time     = average time spent in model predict() per 60-second WAV file")
@@ -339,6 +389,7 @@ def print_summary(results: list[ModelResult]) -> None:
     for r in results:
         print()
         print_confusion_matrix(r)
+        print_wrong_class_detections(r)
 
 
 def main() -> int:
