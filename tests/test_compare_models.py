@@ -519,6 +519,29 @@ class TestEvaluateModel:
         assert result.skipped == 1
         assert result.correct == 0
 
+    def test_skips_sample_when_prediction_label_missing(self, tmp_path):
+        """Samples with a missing prediction label are counted as skipped."""
+        from compare_models import TestSample, evaluate_model
+
+        sample = TestSample(
+            category="resident",
+            node_name="rpi_orcasound_lab",
+            timestamp="2023_08_18_00_59_53_PST",
+            uri="https://example.com/1",
+            description="",
+            notes="tp_human_only",
+        )
+        wav_dir = self._make_wav_files(tmp_path, [sample])
+
+        mock_result = {"global_confidence": 0.8, "predict_time": 1.0}
+        with patch("compare_models.run_inference", return_value=mock_result):
+            result = evaluate_model("fastai", "./model", [sample], wav_dir)
+
+        assert result.skipped == 1
+        assert result.correct == 0
+        assert result.exact_correct == 0
+        assert result.wrong_class_detections == []
+
     def test_podsai_resident_prediction_correct(self, tmp_path):
         """PODS-AI "resident" prediction for a resident sample counts as correct."""
         from compare_models import TestSample, evaluate_model
@@ -664,7 +687,8 @@ class TestPrintSummary:
         results = [ModelResult(model_type="podsai", total=10, correct=8, exact_correct=3, skipped=0)]
         print_summary(results)
         captured = capsys.readouterr().out
-        assert "30.0%" in captured
+        podsai_line = next(line for line in captured.splitlines() if "podsai" in line)
+        assert "30.0%" in podsai_line
 
     def test_prints_na_when_no_evaluated_samples(self, capsys):
         """print_summary shows N/A for accuracy when all samples are skipped."""
@@ -691,7 +715,7 @@ class TestPrintSummary:
         assert "Definitions:" in captured
         assert "false+" in captured or "FP" in captured
 
-    def test_prints_wrong_class_detection_uri(self, capsys):
+    def test_prints_wrong_class_detection_uris(self, capsys):
         """print_summary lists the URI for detections with exact-class mismatches."""
         from compare_models import MisclassifiedDetection, ModelResult, print_summary
         results = [
@@ -711,7 +735,7 @@ class TestPrintSummary:
         ]
         print_summary(results)
         captured = capsys.readouterr().out
-        assert "Wrong-class detections for podsai:" in captured
+        assert "Exact-class mismatches for podsai:" in captured
         assert "https://example.com/2" in captured
 
     def test_prints_avg_time(self, capsys):

@@ -46,7 +46,7 @@ class TestSample:
 
 @dataclass
 class MisclassifiedDetection:
-    """A detection whose predicted class does not match its labeled class."""
+    """A detection whose predicted class does not exactly match its labeled class."""
 
     uri: str
     actual_label: str
@@ -65,6 +65,7 @@ class ModelResult:
     false_negatives: int = 0
     skipped: int = 0
     predict_times: list[float] = field(default_factory=list)
+    # Exact-class mismatches, even if resident-vs-other classification was still correct.
     wrong_class_detections: list[MisclassifiedDetection] = field(default_factory=list)
     # Maps actual_label -> {predicted_label -> count} for each evaluated sample.
     confusion_matrix: dict[str, dict[str, int]] = field(default_factory=dict)
@@ -235,18 +236,15 @@ def evaluate_model(
             continue
 
         predicted_label = inference_result.get("global_prediction_label", "")
-        predicted_resident = is_resident_prediction(predicted_label, model_type)
-        if predicted_label == sample.category:
-            result.exact_correct += 1
-        else:
-            result.wrong_class_detections.append(
-                MisclassifiedDetection(
-                    uri=sample.uri,
-                    actual_label=sample.category,
-                    predicted_label=predicted_label,
-                )
+        if predicted_label is None or predicted_label == "":
+            print(
+                f"  [{model_type}] Skipping {wav_path.name}: "
+                "inference returned no class label"
             )
+            result.skipped += 1
+            continue
 
+        predicted_resident = is_resident_prediction(predicted_label, model_type)
         if predicted_resident == expected_resident:
             result.correct += 1
             status = "correct"
@@ -263,6 +261,17 @@ def evaluate_model(
             result.confusion_matrix[actual_label] = {}
         preds = result.confusion_matrix[actual_label]
         preds[predicted_label] = preds.get(predicted_label, 0) + 1
+
+        if predicted_label == sample.category:
+            result.exact_correct += 1
+        else:
+            result.wrong_class_detections.append(
+                MisclassifiedDetection(
+                    uri=sample.uri,
+                    actual_label=sample.category,
+                    predicted_label=predicted_label,
+                )
+            )
 
         print(
             f"  [{model_type}] {sample.category}/{sample.node_name}/{sample.timestamp}: "
@@ -326,7 +335,7 @@ def print_confusion_matrix(result: ModelResult) -> None:
 
 def print_wrong_class_detections(result: ModelResult) -> None:
     """
-    Print the URI for each detection whose predicted class was wrong.
+    Print the URI for each detection where the predicted class did not exactly match.
 
     Args:
         result: ModelResult whose wrong-class detections to display.
@@ -334,7 +343,7 @@ def print_wrong_class_detections(result: ModelResult) -> None:
     if not result.wrong_class_detections:
         return
 
-    print(f"Wrong-class detections for {result.model_type}:")
+    print(f"Exact-class mismatches for {result.model_type}:")
     for detection in result.wrong_class_detections:
         print(
             f"  {detection.uri} "
