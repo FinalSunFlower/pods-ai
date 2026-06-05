@@ -43,6 +43,7 @@ flowchart TD;
     manualTimestamps@{ shape: doc, label: "manual_timestamps.csv" };
     wav@{ shape: docs, label: "wav/*" };
     testingWav@{ shape: docs, label: "testing-wav/*" };
+    concatenated@{ shape: docs, label: "concatenated.wav" };
 
     processHumpbackWavs@{ shape: rect, label: "processHumpbackWavs.py" };
     makeCsv@{ shape: rect, label: "make_csv.py" };
@@ -51,6 +52,7 @@ flowchart TD;
     downloadWavs@{ shape: rect, label: "download_wavs.py" };
     trainPodsaiModel@{ shape: rect, label: "train_podsai_model.py" };
     compareModels@{ shape: rect, label: "compare_models.py" };
+    concatenateWavs@{ shape: rect, label: "concatenate_wavs.py" };
 
     orcaHello-->makeCsv-->detections;
 
@@ -73,6 +75,8 @@ flowchart TD;
     testingSamples-->compareModels;
     testingWav-->compareModels;
     orcaHelloModel-->compareModels;
+
+    wav-->concatenateWavs-->concatenated;
 ```
 
 ## Model-Based Timestamp Correction for tp_human_only
