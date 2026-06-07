@@ -506,16 +506,16 @@ Models to evaluate: fastai, orcahello, podsai, oldpodsai
 
   ...
 
-==============================================================================================================================================
+================================================================================================================
 Model Comparison Summary
-==============================================================================================================================================
+================================================================================================================
 Model           Evaluated   Correct  Accuracy      F1    RFP%    RFN%    TFP%    TFN%    HFP%    HFN%   Avg Time
-----------------------------------------------------------------------------------------------------------------------------------------------
-fastai                160        68     42.5%   0.129   61.0%   51.7%    0.0%  100.0%    0.0%  100.0%     11.40s
-orcahello             160        41     25.6%   0.128   96.0%   38.3%    0.0%  100.0%    0.0%  100.0%      4.97s
-oldpodsai             160        88     55.0%   0.492   21.0%   45.0%   14.6%   63.3%   15.4%   40.0%      4.49s
-podsai                160       104     65.0%   0.581   20.0%   35.0%    0.0%   73.3%    6.2%   36.7%      6.77s
-==============================================================================================================================================
+----------------------------------------------------------------------------------------------------------------
+fastai                160        68     42.5%   0.129   61.0%   51.7%    0.0%  100.0%    0.0%  100.0%     11.63s
+orcahello             160        41     25.6%   0.128   96.0%   38.3%    0.0%  100.0%    0.0%  100.0%      4.41s
+oldpodsai             160       104     65.0%   0.581   20.0%   35.0%    0.0%   73.3%    6.2%   36.7%      6.41s
+podsai                160        90     56.2%   0.567   16.0%   36.7%    3.1%   50.0%    0.0%   73.3%      6.21s
+================================================================================================================
 
 Definitions:
   Accuracy     = Correct / Evaluated
@@ -526,36 +526,26 @@ Definitions:
   Avg Time     = average time spent in model predict() per 60-second WAV file
 
 Confusion Matrix for fastai (rows=actual, cols=predicted):
-                 other   resident      total
-      human          6          4         10
-   humpback         17         13         30
-     jingle          8          2         10
-   resident         31         29         60
-  transient          4         26         30
-     vessel          4          6         10
-      water          0         10         10
+                other  resident     total
+      human         6         4        10
+   humpback        17        13        30
+     jingle         8         2        10
+   resident        31        29        60
+  transient         4        26        30
+     vessel         4         6        10
+      water         0        10        10
 
 Confusion Matrix for orcahello (rows=actual, cols=predicted):
-                 other   resident      total
-      human          0         10         10
-   humpback          5         25         30
-     jingle          0         10         10
-   resident         23         37         60
-  transient          0         30         30
-     vessel          0         10         10
-      water          0         10         10
+                other  resident     total
+      human         0        10        10
+   humpback         4        26        30
+     jingle         0        10        10
+   resident        23        37        60
+  transient         0        30        30
+     vessel         0        10        10
+      water         0        10        10
 
 Confusion Matrix for oldpodsai (rows=actual, cols=predicted):
-                 human   humpback     jingle   resident  transient     vessel      water      total
-      human          7          1          0          1          1          0          0         10
-   humpback          1         18          0          8          3          0          0         30
-     jingle          0          8          2          0          0          0          0         10
-   resident          6          2          0         33         15          1          3         60
-  transient          1          9          0          9         11          0          0         30
-     vessel          0          0          0          3          0          7          0         10
-      water          0          0          0          0          0          0         10         10
-
-Confusion Matrix for podsai (rows=actual, cols=predicted):
                  human   humpback     jingle   resident  transient     vessel      water      total
       human          9          1          0          0          0          0          0         10
    humpback          0         19          0          3          0          7          1         30
@@ -564,6 +554,16 @@ Confusion Matrix for podsai (rows=actual, cols=predicted):
   transient          0          4          0         17          8          1          0         30
      vessel          0          0          0          0          0         10          0         10
       water          0          0          0          0          0          0         10         10
+
+Confusion Matrix for podsai (rows=actual, cols=predicted):
+                 human   humpback     jingle   resident  transient     vessel      water      total
+      human          9          0          0          0          1          0          0         10
+   humpback          0          8          0          4          2         15          1         30
+     jingle          0          0          6          0          0          4          0         10
+   resident          1          0          0         38          1         17          3         60
+  transient          0          0          0         12         15          3          0         30
+     vessel          0          0          0          0          0         10          0         10
+      water          0          0          0          0          0          6          4         10
 ```
 
 **Example - compare only fastai and orcahello**
