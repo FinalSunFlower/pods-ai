@@ -95,7 +95,7 @@ jobs:
             exit 0
           fi
 
-          branch_name="copilot/update-wav-cache-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          branch_name="github-actions/update-wav-cache-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
           git -C "${WAV_CACHE_PATH}" config user.name "github-actions[bot]"
           git -C "${WAV_CACHE_PATH}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"

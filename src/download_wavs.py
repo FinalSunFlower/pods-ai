@@ -194,9 +194,18 @@ def _get_relative_wav_path(row: CSVRow) -> Path:
 
 
 def _copy_wav_from_cache_if_exists(expected_path: Path, output_root: Path, cache_root: Path | None) -> bool:
+    """
+    Copy a WAV file from cache_root into output_root if it exists there.
+
+    Returns True when a cached file is copied, otherwise False.
+    """
     if cache_root is None:
         return False
-    source_path = cache_root / expected_path.relative_to(output_root)
+    try:
+        relative_path = expected_path.relative_to(output_root)
+    except ValueError:
+        return False
+    source_path = cache_root / relative_path
     if not source_path.exists():
         return False
     expected_path.parent.mkdir(parents=True, exist_ok=True)
@@ -206,6 +215,7 @@ def _copy_wav_from_cache_if_exists(expected_path: Path, output_root: Path, cache
 
 
 def delete_stale_wavs(output_root: Path, expected_relative_paths: set[Path]) -> None:
+    """Delete WAV files under output_root that are not expected by the current CSV rows."""
     if not output_root.exists():
         return
 
