@@ -22,7 +22,7 @@ from podsai_inference import NUM_SPECIAL_TOKENS
 # Pinned PODS-AI model revision for integration-test stability.
 PODSAI_TEST_MODEL_ID = "davethaler/whale-call-detector"
 # renovate: datasource=git-refs depName=https://huggingface.co/davethaler/whale-call-detector versioning=git.
-PODSAI_TEST_MODEL_REVISION = "db51f75da131de0e53e8080a1f2c5f4b534810aa"
+PODSAI_TEST_MODEL_REVISION = "2768cd10340510016312753b6d4c63db86ae9049"
 
 
 def _resolve_podsai_test_model_path() -> str:

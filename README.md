@@ -388,8 +388,8 @@ Model           Evaluated   Correct  Accuracy      F1    RFP%    RFN%    TFP%   
 ----------------------------------------------------------------------------------------------------------------
 fastai                134        52     38.8%   0.120   64.6%   55.8%    0.0%  100.0%    0.0%  100.0%     11.84s
 orcahello             134        34     25.4%   0.125   95.1%   42.3%    0.0%  100.0%    0.0%  100.0%      4.59s
-oldpodsai             134        72     53.7%   0.477   19.5%   46.2%   16.3%   63.3%   15.5%   38.9%      4.47s
-podsai                134        66     49.3%   0.414   29.3%   38.5%    1.0%   70.0%    0.0%   88.9%      6.49s
+oldpodsai             134        66     49.3%   0.414   29.3%   38.5%    1.0%   70.0%    0.0%   88.9%      6.52s
+podsai                134        69     51.5%   0.449   25.6%   38.5%    0.0%   63.3%    0.0%   88.9%      6.37s
 ================================================================================================================
 
 Definitions:
@@ -422,14 +422,14 @@ Confusion Matrix for orcahello (rows=actual, cols=predicted):
       water         0        10        10
 
 Confusion Matrix for oldpodsai (rows=actual, cols=predicted):
-                 human   humpback   resident  transient     vessel      water      total
-      human          7          1          1          1          0          0         10
-   humpback          1         11          4          2          0          0         18
-     jingle          0          7          0          0          0          0          7
-   resident          5          1         28         14          1          3         52
-  transient          1          9          9         11          0          0         30
-     vessel          0          0          2          0          5          0          7
-      water          0          0          0          0          0         10         10
+                 human   humpback     jingle   resident  transient     vessel      water      total
+      human          8          0          0          0          0          2          0         10
+   humpback          0          2          0          4          0         11          1         18
+     jingle          0          0          7          0          0          0          0          7
+   resident          0          0          0         32          0         18          2         52
+  transient          0          0          0         17         11          2          0         30
+     vessel          0          0          0          0          0          7          0          7
+      water          0          0          0          0          0          8          2         10
 
 Confusion Matrix for podsai (rows=actual, cols=predicted):
                  human   humpback     jingle   resident  transient     vessel      water      total
