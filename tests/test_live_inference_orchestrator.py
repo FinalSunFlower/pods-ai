@@ -46,8 +46,69 @@ def test_build_prediction_list_filters_negative_labels() -> None:
     assert predictions[1]["startTime"] == 4.0
 
 
+def test_build_tags_list_from_local_and_global_predictions() -> None:
+    """Tags should be unique positive labels from both global and local predictions."""
+    result = {
+        "local_predictions": [1, 0, 3, 4],
+        "local_confidences": [0.95, 0.10, 0.80, 0.05],
+        "global_prediction_label": "resident",
+        "global_confidence": 0.9,
+    }
+    id2label = {
+        0: "water",
+        1: "resident",
+        2: "transient",
+        3: "humpback",
+        4: "vessel",
+    }
+
+    tags = orchestrator.build_tags_list(result, id2label=id2label)
+
+    # Should have resident (global + local[0]) and humpback (local[2]), sorted
+    assert tags == ["humpback", "resident"]
+
+
+def test_build_tags_list_excludes_negative_labels() -> None:
+    """Tags should not include negative labels like vessel, jingle, human, water, other."""
+    result = {
+        "local_predictions": [1, 0, 2, 4],
+        "local_confidences": [0.95, 0.10, 0.80, 0.05],
+        "global_prediction_label": "transient",
+        "global_confidence": 0.85,
+    }
+    id2label = {
+        0: "water",
+        1: "resident",
+        2: "transient",
+        4: "vessel",
+    }
+
+    tags = orchestrator.build_tags_list(result, id2label=id2label)
+
+    # Should have resident (local[0]) and transient (global + local[2]), vessel excluded
+    assert tags == ["resident", "transient"]
+
+
+def test_build_tags_list_empty_when_all_negative() -> None:
+    """Tags should be empty when all predictions are negative labels."""
+    result = {
+        "local_predictions": [0, 0, 4],
+        "local_confidences": [0.95, 0.10, 0.80],
+        "global_prediction_label": "water",
+        "global_confidence": 0.9,
+    }
+    id2label = {
+        0: "water",
+        4: "vessel",
+    }
+
+    tags = orchestrator.build_tags_list(result, id2label=id2label)
+
+    assert tags == []
+
+
 def test_build_cosmosdb_metadata_includes_multiclass_fields() -> None:
-    """Metadata should include global prediction label, positive segment list, and comments."""
+    """Metadata should include global prediction label, positive segment list, comments, and tags."""
     result = {
         "local_predictions": [2, 0],
         "local_confidences": [0.90, 0.20],
@@ -75,6 +136,7 @@ def test_build_cosmosdb_metadata_includes_multiclass_fields() -> None:
     assert len(metadata["predictions"]) == 1
     assert metadata["predictions"][0]["label"] == "transient"
     assert metadata["comments"] == "AI: transient"
+    assert metadata["tags"] == ["transient"]
 
 
 def test_build_cosmosdb_metadata_comments_appends_dominant_extra_class() -> None:
@@ -98,6 +160,31 @@ def test_build_cosmosdb_metadata_comments_appends_dominant_extra_class() -> None
     )
 
     assert metadata["comments"] == "AI: resident and vessel"
+    # Tags should only include resident (positive label), vessel is negative
+    assert metadata["tags"] == ["resident"]
+
+
+def test_build_cosmosdb_metadata_tags_include_all_positive_predictions() -> None:
+    """tags field should include all unique positive labels from local and global predictions."""
+    result = {
+        "local_predictions": ["resident", "humpback", "resident"],
+        "local_confidences": [0.80, 0.70, 0.65],
+        "global_confidence": 0.8,
+        "global_prediction_label": "resident",
+        "hop_duration": 2.0,
+        "segment_duration": 3.0,
+    }
+
+    metadata = orchestrator.build_cosmosdb_metadata(
+        audio_uri="audio-uri",
+        image_uri="image-uri",
+        result=result,
+        timestamp_in_iso="2026-01-01T00:00:00Z",
+        source_guid="rpi_orcasound_lab",
+        model_id="podsai-model",
+    )
+
+    assert metadata["tags"] == ["humpback", "resident"]
 
 
 def test_upload_detection_to_azure_skips_existing_blobs(tmp_path) -> None:
