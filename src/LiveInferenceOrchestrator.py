@@ -15,7 +15,7 @@ from typing import Any, Optional
 
 from model_inference import get_model_inference
 from pytz import timezone as pytz_tz
-from run_inference import build_tags_list_proposed_description
+from run_inference import build_tags_list
 
 
 AZURE_STORAGE_ACCOUNT_NAME = "livemlaudiospecstorage"
@@ -174,7 +174,7 @@ def build_cosmosdb_metadata(
         for p in result.get("local_predictions", [])
     ]
 
-    tags, proposed_description = build_tags_list_proposed_description(result, id2label=id2label, negative_labels=negative_labels)
+    tags = build_tags_list(result, id2label=id2label, negative_labels=negative_labels)
 
     return {
         "id": str(uuid.uuid4()),

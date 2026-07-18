@@ -186,8 +186,8 @@ def download_60s_audio_from_start_utc(
         return None
 
 
-# Gets 2 tags, 1 global and 1 most common local (even if negative)
-def build_tags_list_proposed_description(
+# Gets x tags, any returned global and 1 most common local (even if negative)
+def build_tags_list(
     result: dict[str, Any],
     id2label: Optional[dict[int, str]] = None,
     negative_labels: Optional[set[str]] = None,
@@ -198,13 +198,14 @@ def build_tags_list_proposed_description(
 
     #Return vals
     tags = list[str]
-    proposed_description = ""
 
     # Add global prediction label if it's positive
+    # list in case there are more than 1 global prediction of equal high confidence 3 samples
     global_prediction_label = result.get("global_prediction_label", "")
+
+
     if global_prediction_label and is_positive_label(global_prediction_label, negative_labels=effective_negative_labels):
         tags.append(global_prediction_label)
-        proposed_description = f"AI: {global_prediction_label}"
 
     # Add labels from local predictions regardless if positive or negative
     local_predictions = result.get("local_predictions", [])
@@ -214,24 +215,20 @@ def build_tags_list_proposed_description(
 
     #If no local tags, return only global tag + desc
     if not local_prediction_labels:
-        return tags, proposed_description
+        return tags
 
     #Get most common local tag
     most_common_label = statistics.mode(local_prediction_labels)
 
     #If no most common local tag, just return global tag + desc
     if not most_common_label:
-        return tags, proposed_description
+        return tags
 
     #If most common is not same as global, add local tag to tags list and desc
-    if (
-        most_common_label in PROPOSED_DESCRIPTION_EXTRA_CLASSES
-        and most_common_label != global_prediction_label
-    ):
+    if (most_common_label != global_prediction_label):
         tags.append(most_common_label)
-        proposed_description = f"{proposed_description} and {most_common_label}"
 
-    return tags, proposed_description
+    return tags
 
 
 
@@ -321,7 +318,6 @@ def run_inference(wav_path: str, model_type: str = "podsai",
               that class and whose confidence exceeds the model's threshold.
             - global_prediction_label: predicted class label for the whole file
             - global_confidence: confidence score (0.0-1.0) for the global prediction
-            - proposed_description: text description suitable for manual sample notes
             - predict_time: time in seconds spent in the model's predict() method
             - positive_segments_count: number of positive PODS-AI segments above threshold
             - positive_segments: list of positive segment details (label/confidence/timestamps)
@@ -438,13 +434,10 @@ def run_inference(wav_path: str, model_type: str = "podsai",
             f"Unknown model type: {model_type!r}. Use 'podsai', 'fastai', or 'orcahello'."
         )
 
-    _, proposed_description = build_tags_list_proposed_description(result, id2label)
-
     return {
         "probabilities": probabilities,
         "global_prediction_label": global_prediction_label,
         "global_confidence": global_confidence,
-        "proposed_description": proposed_description,
         "predict_time": predict_time,
         "local_predictions": local_predictions,
         "local_confidences": local_confidences,
@@ -465,12 +458,10 @@ def print_results(results: dict, model_type: str) -> None:
     probabilities = results["probabilities"]
     label = results["global_prediction_label"]
     confidence = results["global_confidence"]
-    proposed_description = results["proposed_description"]
     predict_time = results.get("predict_time", 0.0)
 
     print(f"Model type: {model_type}")
     print(f"Global prediction: {label} (confidence: {confidence:.4f})")
-    print(f"Proposed description: {proposed_description}")
     print(f"Prediction time: {predict_time:.2f}s")
     if model_type == "podsai":
         local_predictions = results.get("local_predictions", [])
