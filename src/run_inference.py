@@ -35,7 +35,6 @@ from audio_utils import (
     load_m3u8_with_retry,
 )
 from model_inference import get_model_inference
-from LiveInferenceOrchestrator import is_positive_label
 
 PODSAI_MODEL_ID = "davethaler/whale-call-detector"
 # renovate: datasource=git-refs depName=https://huggingface.co/davethaler/whale-call-detector versioning=git.
@@ -192,6 +191,7 @@ def build_tags_list(
     id2label: Optional[dict[int, str]] = None,
     negative_labels: Optional[set[str]] = None,
 ) -> list[str]:
+    from LiveInferenceOrchestrator import is_positive_label
 
     effective_negative_labels = negative_labels if negative_labels is not None else NEGATIVE_LABELS
     local_prediction_labels = list[str]
