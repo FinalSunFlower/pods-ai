@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Optional
+import statistics
 
 import ffmpeg
 from pytz import timezone as pytz_tz
@@ -34,6 +35,7 @@ from audio_utils import (
     load_m3u8_with_retry,
 )
 from model_inference import get_model_inference
+from LiveInferenceOrchestrator import is_positive_label
 
 PODSAI_MODEL_ID = "davethaler/whale-call-detector"
 # renovate: datasource=git-refs depName=https://huggingface.co/davethaler/whale-call-detector versioning=git.
@@ -184,34 +186,54 @@ def download_60s_audio_from_start_utc(
         return None
 
 
-def build_proposed_description(
-    global_prediction_label: str,
-    local_prediction_labels: list[str],
-) -> str:
-    """Build a proposed description string from global and local predictions.
+# Gets 2 tags, 1 global and 1 most common local (even if negative)
+def build_tags_list_proposed_description(
+    result: dict[str, Any],
+    id2label: Optional[dict[int, str]] = None,
+    negative_labels: Optional[set[str]] = None,
+) -> list[str]:
 
-    Args:
-        global_prediction_label: Predicted class label for the whole file.
-        local_prediction_labels: Segment-level predicted class labels.
+    effective_negative_labels = negative_labels if negative_labels is not None else NEGATIVE_LABELS
+    local_prediction_labels = list[str]
 
-    Returns:
-        Proposed description text beginning with "AI:" and optionally appending
-        a dominant non-whale context class from {"vessel", "human", "jingle"}.
-    """
-    proposed_description = f"AI: {global_prediction_label}"
+    #Return vals
+    tags = list[str]
+    proposed_description = ""
+
+    # Add global prediction label if it's positive
+    global_prediction_label = result.get("global_prediction_label", "")
+    if global_prediction_label and is_positive_label(global_prediction_label, negative_labels=effective_negative_labels):
+        tags.append(global_prediction_label)
+        proposed_description = f"AI: {global_prediction_label}"
+
+    # Add labels from local predictions regardless if positive or negative
+    local_predictions = result.get("local_predictions", [])
+    for local_prediction in local_predictions:
+        label = prediction_to_label(local_prediction, id2label)
+        local_prediction_labels.append(label)
+
+    #If no local tags, return only global tag + desc
     if not local_prediction_labels:
-        return proposed_description
+        return tags, proposed_description
 
-    most_common = Counter(local_prediction_labels).most_common(1)
-    if not most_common:
-        return proposed_description
-    most_common_label, _ = most_common[0]
+    #Get most common local tag
+    most_common_label = statistics.mode(local_prediction_labels)
+
+    #If no most common local tag, just return global tag + desc
+    if not most_common_label:
+        return tags, proposed_description
+
+    #If most common is not same as global, add local tag to tags list and desc
     if (
         most_common_label in PROPOSED_DESCRIPTION_EXTRA_CLASSES
         and most_common_label != global_prediction_label
     ):
+        tags.append(most_common_label)
         proposed_description = f"{proposed_description} and {most_common_label}"
-    return proposed_description
+
+    return tags, proposed_description
+
+
 
 
 def prediction_to_label(prediction: Any, id2label: Optional[dict[int, str]]) -> str:
@@ -416,7 +438,7 @@ def run_inference(wav_path: str, model_type: str = "podsai",
             f"Unknown model type: {model_type!r}. Use 'podsai', 'fastai', or 'orcahello'."
         )
 
-    proposed_description = build_proposed_description(global_prediction_label, local_prediction_labels)
+    _, proposed_description = build_tags_list_proposed_description(result, id2label)
 
     return {
         "probabilities": probabilities,

@@ -15,7 +15,7 @@ from typing import Any, Optional
 
 from model_inference import get_model_inference
 from pytz import timezone as pytz_tz
-from run_inference import build_proposed_description
+from run_inference import build_tags_list_proposed_description
 
 
 AZURE_STORAGE_ACCOUNT_NAME = "livemlaudiospecstorage"
@@ -141,42 +141,6 @@ def build_prediction_list(
     return prediction_list
 
 
-def build_tags_list(
-    result: dict[str, Any],
-    id2label: Optional[dict[int, str]] = None,
-    negative_labels: Optional[set[str]] = None,
-) -> list[str]:
-    """Build a list of tags from PODS-AI predictions.
-    
-    Extracts unique positive labels from local predictions and the global prediction,
-    returning them as a deduplicated sorted list.
-    
-    Args:
-        result: Inference result dict from model.predict().
-        id2label: Optional mapping of prediction IDs to label strings.
-        negative_labels: Optional set of labels that should not be tagged (e.g., background classes).
-        
-    Returns:
-        Sorted list of unique positive tags.
-    """
-    effective_negative_labels = negative_labels if negative_labels is not None else NEGATIVE_LABELS
-    tags = set()
-    
-    # Add global prediction label if it's positive
-    global_label = result.get("global_prediction_label", "")
-    if global_label and is_positive_label(global_label, negative_labels=effective_negative_labels):
-        tags.add(global_label)
-    
-    # Add unique positive labels from local predictions
-    local_predictions = result.get("local_predictions", [])
-    for local_prediction in local_predictions:
-        label = prediction_to_label(local_prediction, id2label)
-        if is_positive_label(label, negative_labels=effective_negative_labels):
-            tags.add(label)
-    
-    return sorted(list(tags))
-
-
 def build_cosmosdb_metadata(
     audio_uri: str,
     image_uri: str,
@@ -209,9 +173,8 @@ def build_cosmosdb_metadata(
         prediction_to_label(p, id2label)
         for p in result.get("local_predictions", [])
     ]
-    proposed_description = build_proposed_description(global_label, local_labels)
 
-    tags = build_tags_list(result, id2label=id2label, negative_labels=negative_labels)
+    tags, proposed_description = build_tags_list_proposed_description(result, id2label=id2label, negative_labels=negative_labels)
 
     return {
         "id": str(uuid.uuid4()),
@@ -225,7 +188,6 @@ def build_cosmosdb_metadata(
         "location": location,
         "source_guid": source_guid,
         "predictions": prediction_list,
-        "comments": proposed_description,
         "tags": tags,
     }
 
