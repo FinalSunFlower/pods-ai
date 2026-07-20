@@ -185,7 +185,7 @@ def download_60s_audio_from_start_utc(
         return None
 
 
-# Gets x tags, any returned global and 1 most common local (even if negative)
+# Gets x tags, any returned global and 1 most common local (even if negative).
 def build_tags_list(
     result: dict[str, Any],
     id2label: Optional[dict[int, str]] = None,
@@ -194,37 +194,37 @@ def build_tags_list(
     from LiveInferenceOrchestrator import is_positive_label
 
     effective_negative_labels = negative_labels if negative_labels is not None else NEGATIVE_LABELS
-    local_prediction_labels = list[str]
+    local_prediction_labels = []
 
-    #Return vals
-    tags = list[str]
+    # Return vals.
+    tags = []
 
-    # Add global prediction label if it's positive
-    # list in case there are more than 1 global prediction of equal high confidence 3 samples
+    # Add global prediction label if it's positive.
+    # list in case there are more than 1 global prediction of equal high confidence 3 samples.
     global_prediction_label = result.get("global_prediction_label", "")
 
 
     if global_prediction_label and is_positive_label(global_prediction_label, negative_labels=effective_negative_labels):
         tags.append(global_prediction_label)
 
-    # Add labels from local predictions regardless if positive or negative
+    # Add labels from local predictions regardless if positive or negative.
     local_predictions = result.get("local_predictions", [])
     for local_prediction in local_predictions:
         label = prediction_to_label(local_prediction, id2label)
         local_prediction_labels.append(label)
 
-    #If no local tags, return only global tag + desc
+    # If no local tags, return only global tag.
     if not local_prediction_labels:
         return tags
 
-    #Get most common local tag
+    # Get most common local tag.
     most_common_label = statistics.mode(local_prediction_labels)
 
-    #If no most common local tag, just return global tag + desc
+    # If no most common local tag, just return global tag.
     if not most_common_label:
         return tags
 
-    #If most common is not same as global, add local tag to tags list and desc
+    # If most common is not same as global, add local tag to tags list.
     if (most_common_label != global_prediction_label):
         tags.append(most_common_label)
 
