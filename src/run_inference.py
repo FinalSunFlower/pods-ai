@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import math
+import random
 import shutil
 import sys
 import time
@@ -218,19 +219,19 @@ def build_tags_list(
         return tags
 
     # Get most common local tag.
-    most_common_label = statistics.mode(local_prediction_labels)
-
-    # If no most common local tag, just return global tag.
-    if not most_common_label:
+    # Check if most common local pred is not same as global. If yes, then return only global
+    # If no most common local tag, return random tiebreaker tag.
+    counts = Counter(local_prediction_labels)
+    if(counts.most_common(1)[0][0] != global_prediction_label):
+        if(len(counts) > 1 and counts.most_common()[0][1] == counts.most_common()[1][1]):
+            # Chooses either of the winning local tags randomly (logic subject to change)
+            tags.append(counts.most_common()[random.randint(0,1)][0])
+            return tags
+        else:
+            tags.append(counts.most_common()[0][0])
+            return tags
+    else:
         return tags
-
-    # If most common is not same as global, add local tag to tags list.
-    if (most_common_label != global_prediction_label):
-        tags.append(most_common_label)
-
-    return tags
-
-
 
 
 def prediction_to_label(prediction: Any, id2label: Optional[dict[int, str]]) -> str:
