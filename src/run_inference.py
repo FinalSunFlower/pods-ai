@@ -220,7 +220,7 @@ def build_tags_list(
 
     # Get most common local tag.
     # Check if most common local pred is not same as global. If yes, then return only global
-    # If no most common local tag, return random tiebreaker tag.
+    # If no most common local tag, return random tiebreaker tag out of top two.
     counts = Counter(local_prediction_labels)
     if(counts.most_common(1)[0][0] != global_prediction_label):
         if(len(counts) > 1 and counts.most_common()[0][1] == counts.most_common()[1][1]):

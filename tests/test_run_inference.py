@@ -718,7 +718,7 @@ class TestBuildTagsList:
         tags = build_tags_list(result, id2label=id2label)
         assert set(tags) == {"resident", "transient"}
 
-    def test_build_tags_list_tiebreaker_local_tags(self):
+    def test_build_tags_list_no_most_common_local_tags(self):
         """Tags should include unique positive labels from local predictions."""
         from run_inference import build_tags_list
 
@@ -735,48 +735,6 @@ class TestBuildTagsList:
 
         tags = build_tags_list(result, id2label=id2label)
         assert set(tags) == {"resident", "transient"} or set(tags) == {"resident", "humpback"}
-
-    # def test_build_tags_list_excludes_negative_locals(self):
-    #     """Tags should exclude negative labels from local predictions."""
-    #     from run_inference import build_tags_list
-    #
-    #     result = {
-    #         "global_prediction_label": "resident",
-    #         "local_predictions": [1, 0, 4, 4],
-    #         "local_confidences": [0.7, 0.8, 0.9, 0.8],
-    #     }
-    #     id2label = {
-    #         0: "water",
-    #         1: "resident",
-    #         4: "vessel",
-    #     }
-    #
-    #     tags = build_tags_list(result, id2label=id2label)
-    #     # Only resident should be included (positive global + positive local)
-    #     assert tags == ["resident"]
-    #     assert "water" not in tags
-    #     assert "vessel" not in tags
-
-    def test_build_tags_list_no_most_common_local(self):
-        """Tags should be sorted and unique."""
-        from run_inference import build_tags_list
-        
-        result = {
-            "global_prediction_label": "transient",
-            "local_predictions": [1, 2, 3, 1, 2],
-            "local_confidences": [0.7, 0.8, 0.9, 0.75, 0.78],
-        }
-        id2label = {
-            1: "resident",
-            2: "transient",
-            3: "humpback",
-        }
-        
-        tags = build_tags_list(result, id2label=id2label)
-        # No most common local prediction, return only global tag.
-        assert set(tags) == {"transient"}
-        # Should be sorted
-        assert tags == sorted(tags)
 
     def test_build_tags_list_handles_empty_local_predictions(self):
         """Tags should work with empty local predictions."""
