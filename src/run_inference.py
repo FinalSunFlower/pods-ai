@@ -218,20 +218,29 @@ def build_tags_list(
     if not local_prediction_labels:
         return tags
 
-    # Get most common local tag.
-    # Check if most common local pred is not same as global. If yes, then return only global
-    # If no most common local tag, return random tiebreaker tag out of top two.
-    counts = Counter(local_prediction_labels)
-    if(counts.most_common(1)[0][0] != global_prediction_label):
-        if(len(counts) > 1 and counts.most_common()[0][1] == counts.most_common()[1][1]):
-            # Chooses either of the winning local tags randomly (logic subject to change)
-            tags.append(counts.most_common()[random.randint(0,1)][0])
+    # Get most common local tag
+    # If 2-way tie of most common local tags, then:
+        # If first tied tag is same as global, return second tied tag.
+        # If second tied tag is same as global, return first tied tag.
+        # If neither equal global, pick first tied tag
+    # If no tie, return most common local tag
+    most_common_counts = Counter(local_prediction_labels).most_common()
+    if(len(most_common_counts) > 1 and most_common_counts[0][1] == most_common_counts[1][1]):
+        if (most_common_counts[0][0] == global_prediction_label):
+            tags.append(most_common_counts[1][0])
+            return tags
+        elif (most_common_counts[1][0] == global_prediction_label):
+            tags.append(most_common_counts[0][0])
             return tags
         else:
-            tags.append(counts.most_common()[0][0])
+            tags.append(most_common_counts[0][0])
             return tags
     else:
-        return tags
+        if(most_common_counts[0][0] != global_prediction_label):
+            tags.append(most_common_counts[0][0])
+            return tags
+        else:
+            return tags
 
 
 def prediction_to_label(prediction: Any, id2label: Optional[dict[int, str]]) -> str:
