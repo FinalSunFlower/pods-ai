@@ -278,7 +278,7 @@ class TestRunInferencePodsAI:
     """Tests for run_inference() with a mocked PODS-AI model."""
 
     def test_returns_expected_keys(self):
-        """run_inference returns probabilities, labels, confidence, and proposed description."""
+        """run_inference returns probabilities, labels, confidence, but NOT proposed_description."""
         wav_path = _make_wav()
         try:
             mock_model = _make_podsai_model_mock()
@@ -289,7 +289,7 @@ class TestRunInferencePodsAI:
             assert "probabilities" in result
             assert "global_prediction_label" in result
             assert "global_confidence" in result
-            assert "proposed_description" in result
+            assert "proposed_description" not in result
             assert "positive_segments_count" in result
             assert "positive_segments" in result
         finally:
@@ -334,52 +334,6 @@ class TestRunInferencePodsAI:
             assert result["positive_segments"][0]["start_time_pacific"] == "2025-01-15 12:29:02 PST"
             assert result["positive_segments"][1]["label"] == "transient"
             assert result["positive_segments"][1]["start_time_pacific"] == "2025-01-15 12:29:04 PST"
-        finally:
-            Path(wav_path).unlink(missing_ok=True)
-
-    def test_proposed_description_includes_global_prediction(self):
-        """Description should be prefixed with AI and include the global prediction class."""
-        wav_path = _make_wav()
-        try:
-            mock_model = _make_podsai_model_mock(num_local=29)
-            with patch("run_inference.get_model_inference", return_value=mock_model):
-                from run_inference import run_inference
-                result = run_inference(wav_path, model_type="podsai", model_path="fake-path")
-
-            assert result["proposed_description"] == "AI: resident"
-        finally:
-            Path(wav_path).unlink(missing_ok=True)
-
-    def test_proposed_description_appends_context_class_when_most_common_segment(self):
-        """Append 'and vessel' when vessel is most common and differs from global label."""
-        wav_path = _make_wav()
-        try:
-            mock_model = _make_podsai_model_mock(num_local=29)
-            resident_class = 1
-            vessel_class = 4
-            mock_model.predict.return_value = {
-                "local_predictions": [resident_class] * 4 + [vessel_class] * 25,
-                "local_confidences": [0.7] * 4 + [0.8] * 25,
-                "global_prediction": 1,
-                "global_prediction_label": "resident",
-                "global_confidence": 0.7,
-                "per_class_probabilities": {
-                    "water": 0.0,
-                    "resident": 0.7,
-                    "transient": 0.0,
-                    "humpback": 0.0,
-                    "vessel": 0.8,
-                    "jingle": 0.0,
-                    "human": 0.0,
-                },
-                "hop_duration": 2.0,
-                "segment_duration": 3.0,
-            }
-            with patch("run_inference.get_model_inference", return_value=mock_model):
-                from run_inference import run_inference
-                result = run_inference(wav_path, model_type="podsai", model_path="fake-path")
-
-            assert result["proposed_description"] == "AI: resident and vessel"
         finally:
             Path(wav_path).unlink(missing_ok=True)
 
@@ -518,7 +472,6 @@ class TestRunInferenceFastAI:
             assert "probabilities" in result
             assert "global_prediction_label" in result
             assert "global_confidence" in result
-            assert "proposed_description" in result
         finally:
             Path(wav_path).unlink(missing_ok=True)
 
@@ -609,7 +562,6 @@ class TestRunInferenceOrcaHello:
             assert "probabilities" in result
             assert "global_prediction_label" in result
             assert "global_confidence" in result
-            assert "proposed_description" in result
         finally:
             Path(wav_path).unlink(missing_ok=True)
 
@@ -714,6 +666,46 @@ class TestRunInferenceErrors:
         finally:
             Path(wav_path).unlink(missing_ok=True)
 
+
+# ---------------------------------------------------------------------------
+# Tests for build_tags_list()
+# ---------------------------------------------------------------------------
+
+class TestBuildTagsList:
+    """Tests for the build_tags_list() function."""
+
+    def test_tags_include_global_prediction(self):
+        """Tags should include positive global prediction label."""
+        from run_inference import build_tags_list
+        
+        result = {
+            "global_prediction_label": "resident",
+            "local_predictions": [1, 1, 1],
+            "local_confidences": [0.7, 0.8, 0.75],
+        }
+        id2label = {
+            1: "resident",
+        }
+        
+        tags = build_tags_list(result, id2label)
+        assert set(tags) == {"resident"}
+
+    def test_tags_append_context_class_when_most_common_segment(self):
+        """Tags should include vessel when vessel is most common and differs from global label."""
+        from run_inference import build_tags_list
+        
+        result = {
+            "global_prediction_label": "resident",
+            "local_predictions": [4, 1, 4, 1, 4, 1, 4],
+            "local_confidences": [0.7, 0.7, 0.7, 0.8, 0.7, 0.75, 0.7],
+        }
+        id2label = {
+            1: "resident",
+            4: "vessel",
+        }
+        
+        tags = build_tags_list(result, id2label)
+        assert set(tags) == {"resident", "vessel"}
 
 # ---------------------------------------------------------------------------
 # Tests for main() CLI
@@ -900,7 +892,6 @@ class TestMainCLI:
             "probabilities": {"other": 0.3, "resident": 0.7},
             "global_prediction_label": "resident",
             "global_confidence": 0.7,
-            "proposed_description": "AI: resident",
         }
         print_results(results, "fastai")
         captured = capsys.readouterr()
@@ -908,7 +899,6 @@ class TestMainCLI:
         assert "resident" in captured.out
         assert "fastai" in captured.out
         assert "0.7000" in captured.out
-        assert "AI: resident" in captured.out
 
     def test_print_results_outputs_positive_segment_summary_for_podsai(self, capsys):
         """print_results() writes positive segment count and timestamps for PODS-AI."""
@@ -917,7 +907,6 @@ class TestMainCLI:
             "probabilities": {"resident": 0.7, "water": 0.3},
             "global_prediction_label": "resident",
             "global_confidence": 0.7,
-            "proposed_description": "AI: resident",
             "local_predictions": [0, 1, 2, 4],
             "positive_segments_count": 2,
             "positive_segments": [

@@ -47,7 +47,7 @@ def test_build_prediction_list_filters_negative_labels() -> None:
 
 
 def test_build_cosmosdb_metadata_includes_multiclass_fields() -> None:
-    """Metadata should include global prediction label, positive segment list, and comments."""
+    """Metadata should include global prediction label, positive segment list, and tags."""
     result = {
         "local_predictions": [2, 0],
         "local_confidences": [0.90, 0.20],
@@ -74,7 +74,7 @@ def test_build_cosmosdb_metadata_includes_multiclass_fields() -> None:
     assert metadata["location"]["id"] == "unknown_feed"
     assert len(metadata["predictions"]) == 1
     assert metadata["predictions"][0]["label"] == "transient"
-    assert metadata["comments"] == "AI: transient"
+    assert metadata["tags"] == ["transient", "water"]
 
 
 def test_build_cosmosdb_metadata_comments_appends_dominant_extra_class() -> None:
@@ -97,7 +97,31 @@ def test_build_cosmosdb_metadata_comments_appends_dominant_extra_class() -> None
         model_id="podsai-model",
     )
 
-    assert metadata["comments"] == "AI: resident and vessel"
+    # Tags should only include resident (positive label) and negative local (vessel)
+    assert metadata["tags"] == ["resident", "vessel"]
+
+
+def test_build_cosmosdb_metadata_tags_include_all_positive_predictions() -> None:
+    """tags field should include all unique positive labels from local and global predictions."""
+    result = {
+        "local_predictions": ["resident", "humpback", "resident"],
+        "local_confidences": [0.80, 0.70, 0.65],
+        "global_confidence": 0.8,
+        "global_prediction_label": "resident",
+        "hop_duration": 2.0,
+        "segment_duration": 3.0,
+    }
+
+    metadata = orchestrator.build_cosmosdb_metadata(
+        audio_uri="audio-uri",
+        image_uri="image-uri",
+        result=result,
+        timestamp_in_iso="2026-01-01T00:00:00Z",
+        source_guid="rpi_orcasound_lab",
+        model_id="podsai-model",
+    )
+
+    assert metadata["tags"] == ["resident"]
 
 
 def test_upload_detection_to_azure_skips_existing_blobs(tmp_path) -> None:

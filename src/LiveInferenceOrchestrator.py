@@ -15,7 +15,7 @@ from typing import Any, Optional
 
 from model_inference import get_model_inference
 from pytz import timezone as pytz_tz
-from run_inference import build_proposed_description
+from run_inference import build_tags_list
 
 
 AZURE_STORAGE_ACCOUNT_NAME = "livemlaudiospecstorage"
@@ -173,7 +173,8 @@ def build_cosmosdb_metadata(
         prediction_to_label(p, id2label)
         for p in result.get("local_predictions", [])
     ]
-    proposed_description = build_proposed_description(global_label, local_labels)
+
+    tags = build_tags_list(result, id2label=id2label, negative_labels=negative_labels)
 
     return {
         "id": str(uuid.uuid4()),
@@ -187,7 +188,7 @@ def build_cosmosdb_metadata(
         "location": location,
         "source_guid": source_guid,
         "predictions": prediction_list,
-        "comments": proposed_description,
+        "tags": tags,
     }
 
 
@@ -385,7 +386,7 @@ def upload_detection_to_azure(
     logger.info(
         f"Uploaded detection to Azure: audio={audio_clip_name}, "
         f"spectrogram={spectrogram_name}, cosmos_id={metadata['id']}, "
-        f"timestamp={start_timestamp}"
+        f"timestamp={start_timestamp}, tags={metadata.get('tags', [])}"
     )
     return audio_clip_name, spectrogram_name, metadata["id"]
 
