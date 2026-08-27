@@ -54,6 +54,14 @@ _OPTIONAL_DEPS = [
     'huggingface_hub',
     'yaml',
 ]
+# Mark a stub as a package when another optional dependency imports one of its
+# submodules. This keeps imports such as ``audio.data`` valid when the optional
+# package is not installed.
+_PACKAGE_DEPS = {
+    _candidate
+    for _candidate in _OPTIONAL_DEPS
+    if any(_other.startswith(f"{_candidate}.") for _other in _OPTIONAL_DEPS)
+}
 for _dep in _OPTIONAL_DEPS:
     if _dep not in sys.modules:
         try:
@@ -63,7 +71,10 @@ for _dep in _OPTIONAL_DEPS:
             # A MagicMock without __spec__ makes that probe raise ValueError during
             # collection, so provide the minimal metadata for an importable stub.
             stub = MagicMock()
-            stub.__spec__ = ModuleSpec(_dep, loader=None)
+            is_package = _dep in _PACKAGE_DEPS
+            stub.__spec__ = ModuleSpec(_dep, loader=None, is_package=is_package)
+            if is_package:
+                stub.__path__ = []
             if _dep == 'torchaudio':
                 def _stub_fbank(waveform, sample_frequency, frame_shift, num_mel_bins,
                                 **_kwargs):
@@ -78,6 +89,8 @@ for _dep in _OPTIONAL_DEPS:
                 stub.compliance.kaldi.fbank = _stub_fbank
             elif _dep == 'audio.data':
                 stub.AudioList = MagicMock()
+                stub.AudioConfig = MagicMock()
+                stub.SpectrogramConfig = MagicMock()
             sys.modules[_dep] = stub
 
 # Special handling for mcp modules: requires a proper FastMCP mock so that

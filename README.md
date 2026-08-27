@@ -436,7 +436,8 @@ and average prediction time.
 Evaluation uses model-specific correctness plus per-whale-class error counts:
 - **Correct** – for `fastai` and `orcahello`, model predicted "resident" (SRKW) when the label is
   `resident`, or anything other than `resident` when the label is not `resident`; for
-  `oldpodsai` and `podsai`, the predicted category exactly matches the label.
+  `oldpodsai` and `podsai`, the actual category is included in `global_prediction_labels`,
+  with a single-label fallback for older model results.
 - **F1** – macro F1 over the whale classes `humpback`, `resident`, and `transient` that are
   present in the evaluated samples.
 - **R/T/H false positive** – model predicted `resident`, `transient`, or `humpback`

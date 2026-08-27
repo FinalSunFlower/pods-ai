@@ -60,6 +60,7 @@ from orcasite_feeds import get_orcasite_feeds_with_retry  # noqa: E402
 mcp = FastMCP("Orcasound MCP")
 
 S3_BUCKET = "audio-orcasound-net"
+NEGATIVE_LABELS = {"other", "water", "vessel", "jingle", "human", "bird"}
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +378,12 @@ def compare_models_on_clip(
             global_prediction_labels = preds.get("global_prediction_labels")
             if global_prediction_labels is None:
                 global_prediction_labels = (
-                    [global_prediction_label] if global_prediction_label else []
+                    [global_prediction_label]
+                    if (
+                        global_prediction_label
+                        and global_prediction_label not in NEGATIVE_LABELS
+                    )
+                    else []
                 )
             results[model_key] = {
                 "global_prediction_label": global_prediction_label,

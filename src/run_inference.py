@@ -218,7 +218,12 @@ def build_tags_list(
     global_prediction_labels = result.get("global_prediction_labels")
     if global_prediction_labels is None:
         global_prediction_labels = (
-            [global_prediction_label] if global_prediction_label else []
+            [global_prediction_label]
+            if (
+                global_prediction_label
+                and global_prediction_label not in effective_negative_labels
+            )
+            else []
         )
     for label in global_prediction_labels:
         if label and is_positive_label(label, negative_labels=effective_negative_labels):
@@ -438,7 +443,12 @@ def run_inference(wav_path: str, model_type: str = "podsai",
         global_prediction_labels = result.get("global_prediction_labels")
         if global_prediction_labels is None:
             global_prediction_labels = (
-                [global_prediction_label] if global_prediction_label else []
+                [global_prediction_label]
+                if (
+                    global_prediction_label
+                    and global_prediction_label not in NEGATIVE_LABELS
+                )
+                else []
             )
         global_confidence = float(result.get("global_confidence", 0.0))
         positive_segments_count, positive_segments = calculate_positive_segments(

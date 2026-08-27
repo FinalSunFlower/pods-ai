@@ -422,6 +422,28 @@ class TestRunInferencePodsAI:
         finally:
             Path(wav_path).unlink(missing_ok=True)
 
+    def test_negative_legacy_prediction_has_no_global_positive_labels(self):
+        """Legacy negative results should not be promoted to positive labels."""
+        wav_path = _make_wav()
+        try:
+            mock_model = _make_podsai_model_mock()
+            mock_model.predict.return_value = {
+                "local_predictions": [],
+                "local_confidences": [],
+                "global_prediction_label": "water",
+                "global_confidence": 0.0,
+                "per_class_probabilities": {"water": 1.0},
+            }
+            with patch("run_inference.get_model_inference", return_value=mock_model):
+                from run_inference import run_inference
+
+                result = run_inference(wav_path, model_type="podsai", model_path="fake-path")
+
+            assert result["global_prediction_label"] == "water"
+            assert result["global_prediction_labels"] == []
+        finally:
+            Path(wav_path).unlink(missing_ok=True)
+
     def test_defaults_model_path_to_davethaler_hub(self):
         """When model_path is None for podsai, get_model_inference uses davethaler/whale-call-detector."""
         wav_path = _make_wav()
