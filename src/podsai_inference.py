@@ -469,6 +469,7 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
                 "local_probs": [],
                 "global_prediction": primary_negative_id,
                 "global_prediction_label": self.id2label[primary_negative_id],
+                "global_prediction_labels": [],
                 "global_confidence": 0.0,
                 "hop_duration": float(hop_duration),
                 "segment_duration": float(segment_duration),
@@ -483,6 +484,7 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
                 "local_probs": [],
                 "global_prediction": primary_negative_id,
                 "global_prediction_label": self.id2label[primary_negative_id],
+                "global_prediction_labels": [],
                 "global_confidence": 0.0,
                 "hop_duration": float(hop_duration),
                 "segment_duration": float(segment_duration),
@@ -572,6 +574,7 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
                 "local_probs": [],
                 "global_prediction": primary_negative_id,
                 "global_prediction_label": self.id2label[primary_negative_id],
+                "global_prediction_labels": [],
                 "global_confidence": 0.0,
                 "hop_duration": float(hop_duration),
                 "segment_duration": float(segment_duration),
@@ -629,49 +632,69 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
         scaled_threshold = max(1, (total_segments + SEGMENT_GROUP_SIZE - 1) // SEGMENT_GROUP_SIZE)
         effective_threshold = min(scaled_threshold, min_num_positive_calls_threshold)
 
-        # If we have enough positive predictions, use majority vote among them.
-        if len(positive_predictions) >= effective_threshold:
-            # Count votes for each positive class.
-            class_votes: dict[int, list[float]] = {}
-            for class_id, conf in positive_predictions:
-                if class_id not in class_votes:
-                    class_votes[class_id] = []
-                class_votes[class_id].append(conf)
+        # Keep every whale class that independently meets the evidence threshold.
+        # The primary label remains the legacy single-label result.
+        class_votes: dict[int, list[float]] = {}
+        for class_id, conf in positive_predictions:
+            class_votes.setdefault(class_id, []).append(conf)
 
-            # Winner is the class with most votes (ties broken by average confidence).
-            global_prediction_id = max(
-                class_votes.keys(),
-                key=lambda cid: (len(class_votes[cid]), np.mean(class_votes[cid]))
+        qualifying_classes = {
+            class_id: confidences
+            for class_id, confidences in class_votes.items()
+            if len(confidences) >= effective_threshold
+        }
+        if qualifying_classes:
+            ordered_classes = sorted(
+                qualifying_classes,
+                key=lambda cid: (
+                    -len(qualifying_classes[cid]),
+                    -float(np.mean(qualifying_classes[cid])),
+                    self.id2label[cid],
+                ),
             )
-            global_confidence = float(np.mean(class_votes[global_prediction_id]))
+            global_prediction_id = ordered_classes[0]
+            global_confidence = float(np.mean(qualifying_classes[global_prediction_id]))
         else:
-            # Not enough whale predictions - determine which background class is most likely.
-            # Filter to only background/negative classes to ensure whale classes can't bypass
-            # the effective_threshold requirement.
-            from collections import Counter
-            background_predictions = [c for c in local_predictions if c in self.negative_class_ids]
-
-            if background_predictions:
-                # Get the most common background class.
-                class_counts = Counter(background_predictions)
-                global_prediction_id = class_counts.most_common(1)[0][0]
-
-                # Compute confidence as the mean probability of the predicted class across all segments.
-                global_confidence = float(np.mean([
-                    probs[global_prediction_id] for probs in smoothed_probs
-                ]))
+            # Preserve the legacy majority-vote result when aggregate evidence
+            # reaches the threshold but no individual class does.
+            if len(positive_predictions) >= effective_threshold and class_votes:
+                global_prediction_id = max(
+                    class_votes,
+                    key=lambda cid: (
+                        len(class_votes[cid]),
+                        float(np.mean(class_votes[cid])),
+                        self.id2label[cid],
+                    ),
+                )
+                global_confidence = float(np.mean(class_votes[global_prediction_id]))
+                ordered_classes = [global_prediction_id]
             else:
-                # No background predictions found (all predictions were positive but below threshold).
-                # Fall back to a safe background default.
-                if "other" in self.label2id:
-                    global_prediction_id = self.label2id["other"]
+                ordered_classes = []
+            if not ordered_classes:
+                # Filter to background classes when no whale class has enough evidence.
+                from collections import Counter
+                background_predictions = [
+                    c for c in local_predictions if c in self.negative_class_ids
+                ]
+
+                if background_predictions:
+                    class_counts = Counter(background_predictions)
+                    global_prediction_id = class_counts.most_common(1)[0][0]
+                    global_confidence = float(np.mean([
+                        probs[global_prediction_id] for probs in smoothed_probs
+                    ]))
                 else:
-                    # Use the first negative class (water is typically class 0).
-                    global_prediction_id = min(self.negative_class_ids)
-                global_confidence = 0.0
+                    if "other" in self.label2id:
+                        global_prediction_id = self.label2id["other"]
+                    else:
+                        global_prediction_id = min(self.negative_class_ids)
+                    global_confidence = 0.0
 
         # Convert global prediction ID to label name.
         global_prediction_label = self.id2label[global_prediction_id]
+        global_prediction_labels = [
+            self.id2label[class_id] for class_id in ordered_classes
+        ]
 
         # Calculate per-class probabilities for display purposes.
         # These represent the mean probability for each class across all windows.
@@ -686,6 +709,7 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
             "local_probs": smoothed_probs,
             "global_prediction": global_prediction_id,
             "global_prediction_label": global_prediction_label,
+            "global_prediction_labels": global_prediction_labels,
             "global_confidence": global_confidence,
             "per_class_probabilities": per_class_probabilities,
             "hop_duration": float(hop_duration),

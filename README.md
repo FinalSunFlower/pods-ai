@@ -276,6 +276,10 @@ Per-class probabilities:
   water: 0.0000
 ```
 
+For multi-class PODS-AI inference, `global_prediction_labels` also reports every
+positive whale class that independently meets the evidence threshold. The legacy
+`global_prediction_label` remains the primary label for compatibility.
+
 **Example — FastAI model**
 
 ```bash
@@ -441,6 +445,9 @@ Evaluation uses model-specific correctness plus per-whale-class error counts:
   but the model predicted a different class. Because `fastai` and `orcahello` are binary
   resident-vs-other models, their transient/humpback FP% values stay at `0.0%` and their
   transient/humpback FN% values are `100.0%` whenever those classes are present.
+- For multi-label PODS-AI output, per-class F1 and FP/FN counts use every emitted global
+  label; the displayed confusion matrix keeps the primary label for backwards-compatible
+  tabular output.
 - `compare_models.py` evaluates end-to-end 60-second WAV inference from `output/testing-wav`, so
   its results will differ from the training workflow's held-out evaluation metrics, which score the
   model directly on the trainer's test split.

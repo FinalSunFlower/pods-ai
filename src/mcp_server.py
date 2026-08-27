@@ -373,8 +373,15 @@ def compare_models_on_clip(
                 auto_download=True,
             )
             preds = model.predict(str(path))
+            global_prediction_label = preds.get("global_prediction_label")
+            global_prediction_labels = preds.get("global_prediction_labels")
+            if global_prediction_labels is None:
+                global_prediction_labels = (
+                    [global_prediction_label] if global_prediction_label else []
+                )
             results[model_key] = {
-                "global_prediction_label": preds.get("global_prediction_label"),
+                "global_prediction_label": global_prediction_label,
+                "global_prediction_labels": global_prediction_labels,
                 "global_confidence": round(float(preds.get("global_confidence", 0.0)), 4),
                 "local_confidences": [round(float(c), 4) for c in preds.get("local_confidences", [])],
                 "hop_duration_s": float(preds.get("hop_duration", 1.0)),

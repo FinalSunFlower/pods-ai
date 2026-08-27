@@ -715,6 +715,30 @@ class TestBuildTagsList:
         tags = build_tags_list(result, id2label)
         assert set(tags) == {"resident", "vessel"}
 
+    def test_tags_include_all_global_positive_labels_without_duplicates(self):
+        """Multi-label global predictions are preserved before local context."""
+        from run_inference import build_tags_list
+
+        result = {
+            "global_prediction_label": "resident",
+            "global_prediction_labels": ["resident", "transient"],
+            "local_predictions": [1, 2, 1, 2],
+        }
+        id2label = {1: "resident", 2: "transient"}
+
+        assert build_tags_list(result, id2label) == ["resident", "transient"]
+
+    def test_tags_do_not_add_secondary_local_whale_context(self):
+        """Local whale labels below the global threshold remain out of context tags."""
+        from run_inference import build_tags_list
+
+        result = {
+            "global_prediction_label": "resident",
+            "local_predictions": ["resident", "humpback", "resident"],
+        }
+
+        assert build_tags_list(result) == ["resident"]
+
 # ---------------------------------------------------------------------------
 # Tests for main() CLI
 # ---------------------------------------------------------------------------

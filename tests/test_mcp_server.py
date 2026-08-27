@@ -220,6 +220,7 @@ class TestMCPServer(unittest.TestCase):
         
         self.assertEqual(result["orcahello_label"], "resident")
         self.assertEqual(result["podsai_label"], "resident")
+        self.assertEqual(result["details"]["podsai"]["global_prediction_labels"], ["resident"])
         self.assertTrue(result["models_agree"])
 
     @patch("mcp_server.find_unlabeled_detections")
