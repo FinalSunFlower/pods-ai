@@ -118,7 +118,7 @@ class ModelResult:
 
     @property
     def whale_f1(self) -> Optional[float]:
-        """Macro F1 across whale classes present in the confusion matrix."""
+        """Macro F1 across whale classes in actual labels or prediction sets."""
         labels_seen = _labels_seen_in_confusion_matrix(self.confusion_matrix)
         for prediction_sets in self.prediction_labels.values():
             for labels in prediction_sets:
@@ -525,7 +525,7 @@ def print_summary(results: list[ModelResult]) -> None:
     print()
     print("Definitions:")
     print("  Accuracy     = Correct / Evaluated")
-    print("  Correct      = fastai/orcahello: resident vs other; oldpodsai/podsai: exact category match")
+    print("  Correct      = fastai/orcahello: resident vs other; oldpodsai/podsai: category in prediction set")
     print("  F1           = macro F1 over humpback, resident, and transient classes that are present")
     print("  [R|T|H]FP%   = among non-[R|T|H] samples, fraction predicted as that class")
     print("  [R|T|H]FN%   = among actual samples of that class, fraction predicted as another class")

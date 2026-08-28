@@ -456,6 +456,9 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
             primary_negative_id = self.label2id["other"]
         else:
             primary_negative_id = min(self.negative_class_ids)
+        empty_per_class_probabilities = {
+            label: 0.0 for label in self.id2label.values()
+        }
 
         # Load audio. Resample to 16kHz and convert to mono. Handle exceptions gracefully.
         try:
@@ -470,6 +473,7 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
                 "global_prediction": primary_negative_id,
                 "global_prediction_label": self.id2label[primary_negative_id],
                 "global_prediction_labels": [],
+                "per_class_probabilities": empty_per_class_probabilities,
                 "global_confidence": 0.0,
                 "hop_duration": float(hop_duration),
                 "segment_duration": float(segment_duration),
@@ -485,6 +489,7 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
                 "global_prediction": primary_negative_id,
                 "global_prediction_label": self.id2label[primary_negative_id],
                 "global_prediction_labels": [],
+                "per_class_probabilities": empty_per_class_probabilities,
                 "global_confidence": 0.0,
                 "hop_duration": float(hop_duration),
                 "segment_duration": float(segment_duration),
@@ -575,6 +580,7 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
                 "global_prediction": primary_negative_id,
                 "global_prediction_label": self.id2label[primary_negative_id],
                 "global_prediction_labels": [],
+                "per_class_probabilities": empty_per_class_probabilities,
                 "global_confidence": 0.0,
                 "hop_duration": float(hop_duration),
                 "segment_duration": float(segment_duration),

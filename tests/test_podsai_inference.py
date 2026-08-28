@@ -447,6 +447,16 @@ class TestPodsAIInferenceIndexing:
             assert result["local_confidences"] == []
             assert result["local_probs"] == []
             assert result["global_prediction_labels"] == []
+            assert result["per_class_probabilities"] == {
+                "water": 0.0,
+                "resident": 0.0,
+                "transient": 0.0,
+                "humpback": 0.0,
+                "vessel": 0.0,
+                "jingle": 0.0,
+                "human": 0.0,
+                "bird": 0.0,
+            }
             # global_prediction should be one of the negative classes (water=0, vessel=4, jingle=5, human=6, bird=7).
             assert result["global_prediction"] in [0, 4, 5, 6, 7]
             assert result["global_confidence"] == 0.0
@@ -625,6 +635,16 @@ class TestPodsAIInferenceErrorHandling:
         assert result["local_predictions"] == []
         assert result["local_confidences"] == []
         assert result["local_probs"] == []
+        assert result["per_class_probabilities"] == {
+            "water": 0.0,
+            "resident": 0.0,
+            "transient": 0.0,
+            "humpback": 0.0,
+            "vessel": 0.0,
+            "jingle": 0.0,
+            "human": 0.0,
+            "bird": 0.0,
+        }
         # Should be one of the negative classes (water=0, vessel=4, jingle=5, human=6, bird=7).
         assert result["global_prediction"] in [0, 4, 5, 6, 7]
         assert result["global_confidence"] == 0.0

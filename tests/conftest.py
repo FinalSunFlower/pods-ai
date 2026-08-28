@@ -75,6 +75,7 @@ for _dep in _OPTIONAL_DEPS:
             stub.__spec__ = ModuleSpec(_dep, loader=None, is_package=is_package)
             if is_package:
                 stub.__path__ = []
+                stub.__spec__.submodule_search_locations = []
             if _dep == 'torchaudio':
                 def _stub_fbank(waveform, sample_frequency, frame_shift, num_mel_bins,
                                 **_kwargs):

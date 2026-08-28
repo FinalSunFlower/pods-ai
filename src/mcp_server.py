@@ -60,7 +60,6 @@ from orcasite_feeds import get_orcasite_feeds_with_retry  # noqa: E402
 mcp = FastMCP("Orcasound MCP")
 
 S3_BUCKET = "audio-orcasound-net"
-NEGATIVE_LABELS = {"other", "water", "vessel", "jingle", "human", "bird"}
 
 
 # ---------------------------------------------------------------------------
@@ -368,6 +367,7 @@ def compare_models_on_clip(
             # Lazy import — heavy ML deps only loaded when this tool is actually called.
             # Import inside the try/except so missing optional deps don't crash the entire tool.
             from model_inference import get_model_inference
+            from LiveInferenceOrchestrator import is_positive_label
             model = get_model_inference(
                 model_type=model_type,
                 model_path=model_path,
@@ -379,10 +379,8 @@ def compare_models_on_clip(
             if global_prediction_labels is None:
                 global_prediction_labels = (
                     [global_prediction_label]
-                    if (
-                        global_prediction_label
-                        and global_prediction_label not in NEGATIVE_LABELS
-                    )
+                    if global_prediction_label
+                    and is_positive_label(global_prediction_label)
                     else []
                 )
             results[model_key] = {
