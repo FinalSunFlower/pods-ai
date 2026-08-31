@@ -222,7 +222,10 @@ def build_tags_list(
         global_prediction_labels = (
             [global_prediction_label]
             if global_prediction_label
-            and is_positive_label(global_prediction_label, effective_negative_labels)
+            and is_positive_label(
+                global_prediction_label,
+                negative_labels=effective_negative_labels,
+            )
             else []
         )
     for label in global_prediction_labels:

@@ -638,6 +638,7 @@ class TestPodsAIInferenceErrorHandling:
         assert result["local_predictions"] == []
         assert result["local_confidences"] == []
         assert result["local_probs"] == []
+        assert result["global_prediction_labels"] == []
         assert result["per_class_probabilities"] == {
             "water": 0.0,
             "resident": 0.0,
