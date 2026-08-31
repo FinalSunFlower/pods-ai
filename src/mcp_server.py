@@ -347,6 +347,11 @@ def compare_models_on_clip(
         wav_path: Absolute path to a local .wav file.
         podsai_model_path: Path or HuggingFace Hub ID of the PODS-AI model to compare.
                            Defaults to 'davethaler/whale-call-detector' if not provided.
+
+    Returns:
+        Comparison payload. Each model's details includes the optional
+        ``global_prediction_labels`` list for modern multi-label consumers; legacy
+        consumers may continue using ``global_prediction_label``.
     """
     path = Path(wav_path)
     if not path.is_absolute() or not path.exists():

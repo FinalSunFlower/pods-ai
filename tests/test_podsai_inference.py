@@ -417,6 +417,9 @@ class TestPodsAIInferenceIndexing:
 
         assert result["global_prediction_label"] == "resident"
         assert result["global_prediction_labels"] == ["resident", "transient"]
+        assert len(result["global_prediction_labels"]) == len(
+            set(result["global_prediction_labels"])
+        )
     
     @patch('podsai_inference.AutoModelForAudioClassification')
     @patch('podsai_inference.AutoFeatureExtractor')

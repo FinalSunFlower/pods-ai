@@ -306,7 +306,11 @@ def is_correct_prediction(
         predicted_label: Model-predicted category for the sample.
         model_type: Model family used to interpret correctness.
         predicted_labels: Optional complete set of positive labels emitted by a
-                          multi-label model. When omitted, predicted_label is used.
+                          multi-label model. When provided, membership in this set
+                          determines correctness for exact-match models and resident
+                          membership determines correctness for binary models. When
+                          omitted or empty, the primary ``predicted_label`` is used
+                          as a single-label fallback.
 
     Returns:
         True when the prediction is correct under the model-specific summary rules.

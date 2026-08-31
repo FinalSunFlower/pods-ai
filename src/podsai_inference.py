@@ -438,7 +438,8 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
                                     local_confidences[i] represents the score at time offset
                                     i * hop_duration seconds from the start.
                 - global_prediction: Overall class ID for the entire audio
-                - global_prediction_label: Human-readable label for the global prediction
+                - global_prediction_label: Legacy primary label for the global prediction
+                - global_prediction_labels: Ordered positive labels, or [] when none qualify
                 - global_confidence: Overall confidence score (0.0-1.0) for the global prediction
             Returns dict with empty lists and error values if audio loading fails.
         """
@@ -650,6 +651,8 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
             if len(confidences) >= effective_threshold
         }
         if qualifying_classes:
+            # Deterministic order: vote count, mean confidence, then label name
+            # lexicographically (descending metrics, ascending label name).
             ordered_classes = sorted(
                 qualifying_classes,
                 key=lambda cid: (
@@ -664,14 +667,16 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
             # Preserve the legacy majority-vote result when aggregate evidence
             # reaches the threshold but no individual class does.
             if len(positive_predictions) >= effective_threshold and class_votes:
-                global_prediction_id = max(
+                # Tie-breaker order is count -> mean confidence -> label name
+                # lexicographically, matching the multi-label ordering above.
+                global_prediction_id = sorted(
                     class_votes,
                     key=lambda cid: (
-                        len(class_votes[cid]),
-                        float(np.mean(class_votes[cid])),
+                        -len(class_votes[cid]),
+                        -float(np.mean(class_votes[cid])),
                         self.id2label[cid],
                     ),
-                )
+                )[0]
                 global_confidence = float(np.mean(class_votes[global_prediction_id]))
                 ordered_classes = [global_prediction_id]
             else:
@@ -698,12 +703,12 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
 
         # Convert global prediction ID to label name.
         global_prediction_label = self.id2label[global_prediction_id]
-        global_prediction_labels = [
-            self.id2label[class_id] for class_id in ordered_classes
-        ]
+        ordered_classes = list(dict.fromkeys(ordered_classes))
+        global_prediction_labels = [self.id2label[class_id] for class_id in ordered_classes]
 
         # Calculate per-class probabilities for display purposes.
-        # These represent the mean probability for each class across all windows.
+        # These represent the mean probability for every id2label key across all
+        # windows. Missing model output classes were padded with zeros above.
         per_class_probabilities = {}
         for class_id, label in self.id2label.items():
             class_probs = [float(probs[class_id]) for probs in smoothed_probs]
@@ -714,7 +719,9 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
             "local_confidences": local_confidences,
             "local_probs": smoothed_probs,
             "global_prediction": global_prediction_id,
+            # Legacy single-label fallback: highest-priority positive class.
             "global_prediction_label": global_prediction_label,
+            # Ordered positive classes; empty when no class qualifies.
             "global_prediction_labels": global_prediction_labels,
             "global_confidence": global_confidence,
             "per_class_probabilities": per_class_probabilities,

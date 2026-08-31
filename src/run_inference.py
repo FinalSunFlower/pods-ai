@@ -208,6 +208,9 @@ def build_tags_list(
     """
     from LiveInferenceOrchestrator import is_positive_label
 
+    effective_negative_labels = (
+        negative_labels if negative_labels is not None else NEGATIVE_LABELS
+    )
     local_prediction_labels = []
 
     # Collect tags in output order.
@@ -219,11 +222,11 @@ def build_tags_list(
         global_prediction_labels = (
             [global_prediction_label]
             if global_prediction_label
-            and is_positive_label(global_prediction_label, negative_labels)
+            and is_positive_label(global_prediction_label, effective_negative_labels)
             else []
         )
     for label in global_prediction_labels:
-        if label and is_positive_label(label, negative_labels=negative_labels):
+        if label and is_positive_label(label, negative_labels=effective_negative_labels):
             if label not in tags:
                 tags.append(label)
 
@@ -240,7 +243,7 @@ def build_tags_list(
     # Add the most common non-whale local context label.
     most_common_counts = Counter(local_prediction_labels).most_common()
     for label, _count in most_common_counts:
-        if not is_positive_label(label, negative_labels=negative_labels):
+        if not is_positive_label(label, negative_labels=effective_negative_labels):
             if label not in tags:
                 tags.append(label)
             break

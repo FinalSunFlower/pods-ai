@@ -761,6 +761,18 @@ class TestBuildTagsList:
 
         assert build_tags_list(result) == ["resident"]
 
+    def test_tags_deduplicate_global_and_local_positive_labels(self):
+        """Global positives are emitted once even when repeated locally."""
+        from run_inference import build_tags_list
+
+        result = {
+            "global_prediction_label": "resident",
+            "global_prediction_labels": ["resident", "transient", "resident"],
+            "local_predictions": ["resident", "resident", "water"],
+        }
+
+        assert build_tags_list(result) == ["resident", "transient", "water"]
+
 # ---------------------------------------------------------------------------
 # Tests for main() CLI
 # ---------------------------------------------------------------------------
