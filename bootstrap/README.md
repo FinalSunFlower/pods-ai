@@ -7,7 +7,6 @@ and `output/csv/testing_60s_samples.csv`.
 ## Bootstrap scripts
 
 Archived scripts are in `bootstrap/src/` and are meant for one-time or occasional regeneration.
-The active humpback processing script is maintained at `src/process_humpback_wavs.py`.
 
 1. `make_csv.py` → writes `bootstrap/csv/detections.csv`
 2. `extract_training_samples.py` → writes `bootstrap/csv/initial_training_samples.csv` and `bootstrap/csv/testing_samples.csv`
