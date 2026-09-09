@@ -1,6 +1,6 @@
 # Copyright (c) PODS-AI contributors
 # SPDX-License-Identifier: MIT
-"""Unit tests for non-adjacent positive-event aggregation (#413)."""
+"""Unit tests for non-adjacent positive-event aggregation."""
 
 import pytest
 
