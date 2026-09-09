@@ -653,6 +653,20 @@ class TestRunInferenceOrcaHello:
         finally:
             Path(wav_path).unlink(missing_ok=True)
 
+    def test_orcahello_inference_error_is_not_silently_accepted(self):
+        """Audio decoder failures must fail the runner instead of becoming negatives."""
+        wav_path = _make_wav()
+        try:
+            mock_model = _make_orcahello_model_mock()
+            mock_model.predict.return_value["error"] = "LibsndfileError: System error"
+            with patch("run_inference.get_model_inference", return_value=mock_model):
+                from run_inference import run_inference
+
+                with pytest.raises(RuntimeError, match="OrcaHello inference failed"):
+                    run_inference(wav_path, model_type="orcahello", model_path="model")
+        finally:
+            Path(wav_path).unlink(missing_ok=True)
+
     def test_defaults_model_path_to_orcahello_hub(self):
         """When model_path is None for orcahello, get_model_inference uses orcahello-srkw-detector-v1."""
         wav_path = _make_wav()

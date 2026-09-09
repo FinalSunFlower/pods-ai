@@ -31,23 +31,30 @@ SEGMENT_GROUP_SIZE = 10
 def count_non_adjacent_positive_events(positive_mask: Sequence[bool | int]) -> int:
     """Count distinct acoustic events by collapsing adjacent positive segments.
 
+    At most two adjacent segments are collapsed into one event. Therefore a
+    contiguous positive run of length ``L`` contributes ``(L + 1) // 2`` events.
+
     Sliding windows hop by 1–2 seconds, so one call often lights up two
     neighboring segments. Those neighbors are one event. A gap of one or more
     non-positive segments starts a new event.
 
     Examples:
-        [1, 1, 1, 0] → 1 event
+        [1, 1, 1, 0] → 2 events
         [1, 0, 1, 0] → 2 events
         [1, 1, 0, 1, 1] → 2 events
+        [1, 1, 1, 1] → 2 events
+        [1, 1, 1, 1, 1] → 3 events
     """
     events = 0
-    in_run = False
+    run_length = 0
     for value in positive_mask:
-        if bool(value) and not in_run:
-            events += 1
-            in_run = True
-        elif not bool(value):
-            in_run = False
+        if bool(value):
+            run_length += 1
+        elif run_length:
+            events += (run_length + 1) // 2
+            run_length = 0
+    if run_length:
+        events += (run_length + 1) // 2
     return events
 
 
@@ -56,7 +63,27 @@ def meets_min_positive_event_threshold(
     min_num_positive_calls_threshold: int,
 ) -> bool:
     """Return True when collapsed event count meets the configured threshold."""
-    return count_non_adjacent_positive_events(positive_mask) >= min_num_positive_calls_threshold
+    return (
+        count_non_adjacent_positive_events(positive_mask)
+        >= min_num_positive_calls_threshold
+    )
+
+
+def _positive_event_ids(positive_mask: Sequence[bool | int]) -> list[Optional[int]]:
+    """Assign segments to global positive events, capped at two segments each."""
+    event_ids: list[Optional[int]] = []
+    event_id = -1
+    run_length = 0
+    for value in positive_mask:
+        if not bool(value):
+            run_length = 0
+            event_ids.append(None)
+            continue
+        if run_length % 2 == 0:
+            event_id += 1
+        event_ids.append(event_id)
+        run_length += 1
+    return event_ids
 
 # HuggingFace model_type value for the Audio Spectrogram Transformer architecture.
 # AST models expect a pre-computed mel spectrogram; raw-audio models (e.g. Wav2Vec2)
@@ -661,11 +688,6 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
         # For negative (background) classes, we use the most common prediction.
 
         # Filter for positive (whale) predictions with confidence above threshold.
-        positive_predictions = [
-            (class_id, conf)
-            for class_id, conf in zip(local_predictions, local_confidences)
-            if class_id not in self.negative_class_ids and conf >= threshold
-        ]
         positive_mask = [
             class_id not in self.negative_class_ids and conf >= threshold
             for class_id, conf in zip(local_predictions, local_confidences)
@@ -678,22 +700,29 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
         scaled_threshold = max(1, (total_segments + SEGMENT_GROUP_SIZE - 1) // SEGMENT_GROUP_SIZE)
         effective_threshold = min(scaled_threshold, min_num_positive_calls_threshold)
 
-        # Keep every whale class that independently meets the event threshold.
-        # Adjacent overlapping positives for the same class collapse to one event.
-        # The primary label remains the legacy single-label result.
-        class_votes: dict[int, list[float]] = {}
-        for class_id, conf in positive_predictions:
-            class_votes.setdefault(class_id, []).append(conf)
+        # Build class support from the global event boundaries. This prevents
+        # class jitter (for example resident/transient alternation) from
+        # turning one acoustic event into multiple per-class events.
+        event_ids = _positive_event_ids(positive_mask)
+        class_event_confidences: dict[int, dict[int, list[float]]] = {}
+        for class_id, conf, event_id in zip(
+            local_predictions, local_confidences, event_ids
+        ):
+            if event_id is None or class_id in self.negative_class_ids or conf < threshold:
+                continue
+            class_event_confidences.setdefault(class_id, {}).setdefault(
+                event_id, []
+            ).append(conf)
 
+        # Each class contributes at most one vote per globally collapsed event.
+        class_votes = {
+            class_id: [float(np.mean(values)) for values in events.values()]
+            for class_id, events in class_event_confidences.items()
+        }
         qualifying_classes = {
             class_id: confidences
             for class_id, confidences in class_votes.items()
-            if count_non_adjacent_positive_events(
-                [
-                    pred == class_id and conf >= threshold
-                    for pred, conf in zip(local_predictions, local_confidences)
-                ]
-            ) >= effective_threshold
+            if len(confidences) >= effective_threshold
         }
         if qualifying_classes:
             # Deterministic order: vote count, mean confidence, then label name
@@ -711,7 +740,10 @@ class PodsAIInference(ModelInference):  # Inherit from ModelInference
         else:
             # Preserve the legacy majority-vote result when aggregate evidence
             # reaches the threshold but no individual class does.
-            if count_non_adjacent_positive_events(positive_mask) >= effective_threshold and class_votes:
+            if (
+                meets_min_positive_event_threshold(positive_mask, effective_threshold)
+                and class_votes
+            ):
                 # Tie-breaker order is count -> mean confidence -> label name
                 # lexicographically, matching the multi-label ordering above.
                 global_prediction_id = sorted(

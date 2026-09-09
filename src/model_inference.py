@@ -110,7 +110,11 @@ def export_wave_file(audio, begin, end, dest):
     Function to extract a smaller wav file based start and end duration information
     '''
     sub_audio = audio[begin * 1000:end * 1000]
-    sub_audio.export(dest, format="wav")
+    # pydub keeps path-backed exports open until the returned handle is closed.
+    # Flush and close it before a downstream decoder opens the segment.
+    exported_file = sub_audio.export(dest, format="wav")
+    exported_file.flush()
+    exported_file.close()
 
 
 def extract_segments(audioPath, sampleDict, destnPath, suffix):
