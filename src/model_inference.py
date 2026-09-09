@@ -21,6 +21,7 @@ a "model" directory.
 import gc
 import os
 import tempfile
+import wave
 import torch
 import pandas as pd
 from pydub import AudioSegment
@@ -113,16 +114,19 @@ def export_wave_file(audio, begin, end, dest):
     dest_path = Path(dest)
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Publish only after pydub has finished and closed its path-backed handle.
-    # Atomic replacement keeps downstream readers from observing a partial WAV.
+    # Write PCM directly with the standard library, then publish atomically.
+    # This avoids pydub's Python 3.14 WAV path-export incompatibility and keeps
+    # downstream readers from observing a partial file.
     temp_fd, temp_name = tempfile.mkstemp(
         prefix=f".{dest_path.name}.", suffix=".tmp", dir=dest_path.parent
     )
     os.close(temp_fd)
     try:
-        exported_file = sub_audio.export(temp_name, format="wav")
-        exported_file.flush()
-        exported_file.close()
+        with wave.open(temp_name, "wb") as output_file:
+            output_file.setnchannels(sub_audio.channels)
+            output_file.setsampwidth(sub_audio.sample_width)
+            output_file.setframerate(sub_audio.frame_rate)
+            output_file.writeframes(sub_audio.raw_data)
         os.replace(temp_name, dest_path)
     finally:
         try:
