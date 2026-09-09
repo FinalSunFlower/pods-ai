@@ -145,6 +145,12 @@ def _resolve_podsai_test_model_path() -> str:
         return hf_snapshot_download(
             repo_id=PODSAI_TEST_MODEL_ID,
             revision=PODSAI_TEST_MODEL_REVISION,
+            allow_patterns=[
+                "config.json",
+                "preprocessor_config.json",
+                "model.safetensors",
+                "training_args.bin",
+            ],
         )
     except Exception:
         pytest.skip(
@@ -1037,6 +1043,12 @@ class TestPinnedPodsAIModelPath:
         mock_snapshot.assert_called_once_with(
             repo_id=PODSAI_TEST_MODEL_ID,
             revision=PODSAI_TEST_MODEL_REVISION,
+            allow_patterns=[
+                "config.json",
+                "preprocessor_config.json",
+                "model.safetensors",
+                "training_args.bin",
+            ],
         )
 
 
