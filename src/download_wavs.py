@@ -200,9 +200,8 @@ def is_external_humpback_training_wav(relative_path: Path) -> bool:
     """
     Return True for submodule-derived humpback segments used in training.
 
-    These files are produced by bootstrap/src/process_humpback_wavs.py and are
-    not listed in training_3s_samples.csv, so download cleanup must keep them
-    (issue #412).
+    These files are produced by src/process_humpback_wavs.py and are not listed
+    in training_3s_samples.csv, so download cleanup must keep them.
     """
     return (
         len(relative_path.parts) >= 2

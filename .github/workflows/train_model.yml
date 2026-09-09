@@ -70,7 +70,7 @@ jobs:
 
       - name: Process humpback signal wavs
         run: |
-          python bootstrap/src/process_humpback_wavs.py
+          python src/process_humpback_wavs.py
 
       - name: Train model
         run: >
