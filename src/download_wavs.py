@@ -15,7 +15,6 @@ from tempfile import TemporaryDirectory
 from urllib.parse import quote, urlparse, parse_qs
 
 import ffmpeg
-import m3u8
 from pytz import timezone
 import requests
 
@@ -132,7 +131,7 @@ def _find_overlaps(rows: list[CSVRow], window_fn, label: str) -> list[str]:
 
     for node_name, windows in by_node.items():
         windows.sort(key=lambda item: item[0])
-        prev_start, prev_end, prev_row = windows[0]
+        _, prev_end, prev_row = windows[0]
         for curr_start, curr_end, curr_row in windows[1:]:
             if curr_start < prev_end:
                 overlaps.append(
@@ -140,7 +139,7 @@ def _find_overlaps(rows: list[CSVRow], window_fn, label: str) -> list[str]:
                     f"{prev_row.timestamp_pst} overlaps {curr_row.timestamp_pst}"
                 )
             if curr_end > prev_end:
-                prev_start, prev_end, prev_row = curr_start, curr_end, curr_row
+                prev_end, prev_row = curr_end, curr_row
     return overlaps
 
 
@@ -898,7 +897,7 @@ def download_audio_segment(
         current_folder = int(valid_folders[0])
 
     except Exception as e:
-        print(f"\nERROR: Failed to query S3 bucket.")
+        print("\nERROR: Failed to query S3 bucket.")
         print(f"Details: {e}")
         print(f"Hydrophone: {node_name}")
         print(f"Start time (unix): {start_unix_time}")
@@ -917,15 +916,12 @@ def download_audio_segment(
 
     num_total_segments = len(stream_obj.segments)
     if num_total_segments == 0:
-        print(f"ERROR: No segments found in m3u8 file")
+        print("ERROR: No segments found in m3u8 file")
         return
 
     # Calculate target duration (average segment duration).
     target_duration_exact = sum(item.duration for item in stream_obj.segments) / num_total_segments
     target_duration = round(target_duration_exact, 1)
-
-    # Calculate number of segments needed for N_SECONDS.
-    num_segments_needed = math.ceil(N_SECONDS / target_duration)
 
     # Calculate start and end indices based on time since folder start.
     # Don't apply a 2-second offset since it was already applied into the timestamps we have.
@@ -995,7 +991,7 @@ def download_audio_segment(
             print(f"Downloaded: {expected_path}")
 
     except Exception as e:
-        print(f"\nWarning: Unable to retrieve audio clip.")
+        print("\nWarning: Unable to retrieve audio clip.")
         print(f"Error details: {type(e).__name__}: {str(e)}")
         print(f"Hydrophone: {node_name}")
 
@@ -1052,16 +1048,21 @@ def download_testing_file(expected_path: Path, output_root: Path, cache_root: Pa
 
     node_name, timestamp_pst = parse_node_and_timestamp_from_filename(expected_path)
     audio_start = parse_timestamp_pacific(timestamp_pst)
+    start_time_utc = audio_start.astimezone(dt_timezone.utc) - timedelta(
+        seconds=AUDIO_OFFSET_SECONDS
+    )
+    requested_audio_start = start_time_utc.astimezone(PACIFIC_TZ)
     if expected_path.exists():
-        if _has_audio_start_marker(expected_path, audio_start):
+        if _has_audio_start_marker(expected_path, requested_audio_start):
             print(f"  Skipping (already exists): {expected_path}")
             return
         _preserve_unverified_wav(expected_path)
-    if _copy_wav_from_cache_if_exists(expected_path, output_root, cache_root, audio_start=audio_start):
-        _write_audio_start_marker(expected_path, audio_start)
+    if _copy_wav_from_cache_if_exists(
+        expected_path, output_root, cache_root, audio_start=requested_audio_start
+    ):
+        _write_audio_start_marker(expected_path, requested_audio_start)
         return
 
-    start_time_utc = audio_start.astimezone(dt_timezone.utc)
     print(f"  Downloading {TESTING_WINDOW_SECONDS}-second audio from {timestamp_pst}...")
 
     with TemporaryDirectory() as tmp_dir:
@@ -1080,7 +1081,7 @@ def download_testing_file(expected_path: Path, output_root: Path, cache_root: Pa
         expected_path.parent.mkdir(parents=True, exist_ok=True)
 
         shutil.move(wav_path, expected_path)
-        _write_audio_start_marker(expected_path, audio_start)
+        _write_audio_start_marker(expected_path, requested_audio_start)
         print(f"  Downloaded: {expected_path}")
 
 

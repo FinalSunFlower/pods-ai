@@ -66,7 +66,7 @@ for _dep in _OPTIONAL_DEPS:
     if _dep not in sys.modules:
         try:
             __import__(_dep)
-        except ImportError:
+        except (ImportError, OSError):
             # Transformers probes optional packages with importlib.util.find_spec().
             # A MagicMock without __spec__ makes that probe raise ValueError during
             # collection, so provide the minimal metadata for an importable stub.

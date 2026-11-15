@@ -74,7 +74,7 @@ def test_shared_cleanup_preserves_files_from_both_manifests(tmp_path):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"wav")
     testing_path.with_name(f"{testing_path.name}.audio-start").write_text(
-        "2025_01_01_01_00_02_PST", encoding="utf-8"
+        "2025_01_01_01_00_00_PST", encoding="utf-8"
     )
 
     combined_expected = {

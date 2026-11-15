@@ -27,6 +27,7 @@ from add_samples import (
     DEFAULT_DETECTIONS_CSV,
     DEFAULT_MODEL_PATH,
     DEFAULT_OUTPUT_DIR,
+    ORCASITE_OFFSET_SECONDS,
     add_testing_60s_sample,
     add_training_3s_samples,
 )
@@ -139,7 +140,11 @@ def process_false_negatives(
             print(f"Checking confirmed SRKW detection at {timestamp_str} by model {model_id}")
 
             with TemporaryDirectory() as temp_dir:
-                min_end_timestamp_pst_str = format_timestamp_pacific(detection.timestamp + timedelta(seconds=60))
+                min_end_timestamp_pst_str = format_timestamp_pacific(
+                    detection.timestamp
+                    - timedelta(seconds=ORCASITE_OFFSET_SECONDS)
+                    + timedelta(seconds=60)
+                )
                 wav_path = download_60s_audio(node_name=feed.node_name, min_end_timestamp_pst_str=min_end_timestamp_pst_str, tmp_dir=temp_dir)
                 if wav_path is None:
                     print(f"Skipping {feed.node_name} {timestamp_str}: failed to download audio.")

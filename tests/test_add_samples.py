@@ -4,10 +4,9 @@
 
 import csv
 import io
+import json
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,9 +18,6 @@ from audio_utils import (
 )
 from add_samples import (
     DEFAULT_MODEL_PATH,
-    DEFAULT_OUTPUT_DIR,
-    HOP_DURATION,
-    SEGMENT_DURATION,
     add_testing_60s_sample,
     add_training_3s_samples,
     get_segment_prediction,
@@ -352,15 +348,17 @@ class TestSplitWavIntoSegments:
         captured = capsys.readouterr()
         assert "Error" in captured.err
 
-    def test_skips_existing_segments(self, tmp_path, capsys):
-        """split_wav_into_segments should skip segments that already exist."""
+    def test_reextracts_existing_segment_without_metadata(self, tmp_path, capsys):
+        """A filename-only cache hit is unverified and must be re-extracted."""
         fake_probe = {"format": {"duration": "3.0"}}
-        # Pre-create the expected output file.
         existing = tmp_path / "rpi-orcasound-lab_2025_01_15_12_30_00_PST.wav"
         existing.write_bytes(b"existing")
 
+        def fake_run(*args, **kwargs):
+            existing.write_bytes(b"re-extracted")
+
         with patch("add_samples.ffmpeg.probe", return_value=fake_probe), \
-             patch("add_samples.ffmpeg.run") as mock_run:
+             patch("add_samples.ffmpeg.run", side_effect=fake_run) as mock_run:
 
             segments = split_wav_into_segments(
                 wav_file="fake.wav",
@@ -369,11 +367,61 @@ class TestSplitWavIntoSegments:
                 output_dir=tmp_path,
             )
 
-        # ffmpeg.run should not be called for an already-existing segment.
-        mock_run.assert_not_called()
+        mock_run.assert_called_once()
         assert len(segments) == 1
+        assert existing.read_bytes() == b"re-extracted"
+        assert existing.with_name(f"{existing.name}.unverified").read_bytes() == b"existing"
+        assert existing.with_name(f"{existing.name}.metadata.json").is_file()
         captured = capsys.readouterr()
-        assert "Skipping" in captured.out
+        assert "Saved" in captured.out
+
+    @pytest.mark.parametrize(
+        ("metadata_key", "metadata_value"),
+        [
+            ("source", {"uri": "https://example.org/other"}),
+            ("start_offset_seconds", 99),
+        ],
+    )
+    def test_reextracts_when_cached_source_or_offset_metadata_differs(
+        self, tmp_path, metadata_key, metadata_value
+    ):
+        fake_probe = {"format": {"duration": "3.0"}}
+        existing = tmp_path / "rpi-orcasound-lab_2025_01_15_12_30_00_PST.wav"
+
+        def fake_run(*args, **kwargs):
+            existing.write_bytes(b"fresh segment")
+
+        with patch("add_samples.ffmpeg.probe", return_value=fake_probe), \
+             patch("add_samples.ffmpeg.run", side_effect=fake_run) as mock_run:
+            split_wav_into_segments(
+                wav_file="fake.wav",
+                node_name="rpi_orcasound_lab",
+                start_timestamp="2025_01_15_12_30_00_PST",
+                output_dir=tmp_path,
+                source_uri="https://example.org/source",
+            )
+            metadata_path = existing.with_name(f"{existing.name}.metadata.json")
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            metadata[metadata_key] = metadata_value
+            metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+            split_wav_into_segments(
+                wav_file="fake.wav",
+                node_name="rpi_orcasound_lab",
+                start_timestamp="2025_01_15_12_30_00_PST",
+                output_dir=tmp_path,
+                source_uri="https://example.org/source",
+            )
+            split_wav_into_segments(
+                wav_file="fake.wav",
+                node_name="rpi_orcasound_lab",
+                start_timestamp="2025_01_15_12_30_00_PST",
+                output_dir=tmp_path,
+                source_uri="https://example.org/source",
+            )
+
+        assert mock_run.call_count == 2
+        assert existing.read_bytes() == b"fresh segment"
+        assert existing.with_name(f"{existing.name}.unverified").exists()
 
     def test_output_dir_is_created(self, tmp_path):
         """split_wav_into_segments should create the output directory if needed."""
@@ -557,14 +605,15 @@ class TestAddSamples:
         ) as mock_download, patch(
             "add_samples.split_wav_into_segments",
             return_value=[(segment_path, corrected_timestamp)],
-        ), patch("add_samples.lookup_detection_in_csv", return_value=None), patch(
+        ) as mock_split, patch("add_samples.lookup_detection_in_csv", return_value=None), patch(
             "add_samples.get_node_slug", return_value="test"
         ):
+            source_uri = (
+                "https://live.orcasound.net/bouts/new/test?"
+                "time=2025-01-01T08%3A00%3A00.000Z"
+            )
             rows = add_training_3s_samples(
-                uri=(
-                    "https://live.orcasound.net/bouts/new/test?"
-                    "time=2025-01-01T08%3A00%3A00.000Z"
-                ),
+                uri=source_uri,
                 output_dir=str(tmp_path),
                 model=mock_model,
             )
@@ -574,6 +623,7 @@ class TestAddSamples:
         assert mock_download.call_args.kwargs["min_end_timestamp_pst_str"] == (
             "2025_01_01_00_01_00_PST"
         )
+        assert mock_split.call_args.kwargs["source_uri"] == source_uri
         assert rows[0]["StartTimestamp"] == corrected_timestamp
 
     def test_default_model_path_is_used(self, tmp_path):

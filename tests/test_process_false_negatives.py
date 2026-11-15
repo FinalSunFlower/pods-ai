@@ -5,7 +5,7 @@
 import csv
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 
@@ -439,7 +439,7 @@ class TestProcessFalseNegatives:
         detection = OrcaHelloDetection(
             id="det_1",
             feed=feed,
-            timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            timestamp=datetime(2025, 1, 1, 12, 0, 1, tzinfo=timezone.utc),
             status="confirmed",
             comments="confirmed resident",
             tags="resident",
@@ -451,7 +451,7 @@ class TestProcessFalseNegatives:
         testing_row = {
             "Category": "resident",
             "NodeName": "rpi_test",
-            "StartTimestamp": "2025_01_01_04_00_00_PST",
+            "StartTimestamp": "2025_01_01_04_00_01_PST",
             "URI": "https://example.com/testing",
             "Tags": "resident",
         }
@@ -461,7 +461,7 @@ class TestProcessFalseNegatives:
              patch("process_false_negatives.get_model_inference") as get_model, \
              patch("process_false_negatives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_negatives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_negatives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_negatives.download_60s_audio", return_value=str(wav_path)) as mock_download, \
              patch(
                  "process_false_negatives.add_testing_60s_sample",
                  return_value=testing_row,
@@ -477,9 +477,14 @@ class TestProcessFalseNegatives:
             )
 
         assert summary["appended"] == 1
+        mock_download.assert_called_once_with(
+            node_name="rpi_test",
+            min_end_timestamp_pst_str="2025_01_01_04_00_59_PST",
+            tmp_dir=ANY,
+        )
         add_testing.assert_called_once_with(
             node_name="rpi_test",
-            start_timestamp="2025_01_01_04_00_00_PST",
+            start_timestamp="2025_01_01_04_00_01_PST",
             detections_csv=false_negatives_module.DEFAULT_DETECTIONS_CSV,
             corrected_class="resident",
             fallback_description="confirmed resident",
@@ -528,7 +533,7 @@ class TestProcessFalseNegatives:
             return_value=[detection],
         ), patch(
             "process_false_negatives.get_model_inference",
-        ) as mock_get_model, patch(
+        ), patch(
             "process_false_negatives.download_60s_audio",
         ) as mock_download:
 

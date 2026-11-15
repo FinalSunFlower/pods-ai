@@ -4,7 +4,7 @@
 
 import csv
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from audio_utils import OrcaHelloDetection
 from orcasite_feeds import OrcasiteFeed
@@ -163,7 +163,7 @@ class TestProcessFalsePositives:
         detection = OrcaHelloDetection(
             id="det_1",
             feed=feed,
-            timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            timestamp=datetime(2025, 1, 1, 12, 0, 2, tzinfo=timezone.utc),
             status="rejected",
             comments="Boat noise from a nearby vessel.",
             tags="vessel",
@@ -172,7 +172,7 @@ class TestProcessFalsePositives:
         testing_row = {
             "Category": "vessel",
             "NodeName": "rpi_test",
-            "StartTimestamp": "2025_01_01_04_00_00_PST",
+            "StartTimestamp": "2025_01_01_04_00_02_PST",
             "URI": "https://example.com/testing",
             "Description": "Boat noise from a nearby vessel.",
             "Notes": "fp_machine",
@@ -190,7 +190,7 @@ class TestProcessFalsePositives:
         with patch("process_false_positives.get_model_inference") as mock_get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)) as mock_download, \
              patch("process_false_positives.add_training_3s_samples") as mock_add_training, \
              patch(
                  "process_false_positives.add_testing_60s_sample",
@@ -208,10 +208,15 @@ class TestProcessFalsePositives:
 
         mock_get_model.assert_called_once()
         mock_get_model.return_value.predict.assert_called_once_with(str(wav_path))
+        mock_download.assert_called_once_with(
+            node_name="rpi_test",
+            min_end_timestamp_pst_str="2025_01_01_04_01_00_PST",
+            tmp_dir=ANY,
+        )
         mock_add_training.assert_not_called()
         assert mock_add_testing.call_count == 1
         assert mock_add_testing.call_args.kwargs["corrected_class"] == "vessel"
-        assert mock_add_testing.call_args.kwargs["start_timestamp"] == "2025_01_01_04_00_00_PST"
+        assert mock_add_testing.call_args.kwargs["start_timestamp"] == "2025_01_01_04_00_02_PST"
         assert mock_add_testing.call_args.kwargs["fallback_description"] == detection.comments
         assert mock_add_testing.call_args.kwargs["fallback_notes"] == "fp_machine"
         assert mock_add_testing.call_args.kwargs["fallback_tags"] == detection.tags
@@ -331,7 +336,7 @@ class TestProcessFalsePositives:
         detection = OrcaHelloDetection(
             id="det_1",
             feed=feed,
-            timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            timestamp=datetime(2025, 1, 1, 12, 0, 1, tzinfo=timezone.utc),
             status="rejected",
             comments="Boat noise from a nearby vessel.",
         )
@@ -357,7 +362,7 @@ class TestProcessFalsePositives:
              patch("process_false_positives.get_model_inference") as get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)) as mock_download, \
              patch("process_false_positives.add_training_3s_samples", return_value=[segment]):
             get_model.return_value.predict.return_value = {"global_prediction_label": "resident"}
             summary = process_false_positives(
@@ -367,6 +372,11 @@ class TestProcessFalsePositives:
 
         assert summary["appended"] == 0
         assert summary["overlaps"] == 1
+        mock_download.assert_called_once_with(
+            node_name="rpi_test",
+            min_end_timestamp_pst_str="2025_01_01_04_00_59_PST",
+            tmp_dir=ANY,
+        )
 
     def test_appends_only_mismatched_whale_segments_with_corrected_class(self, tmp_path):
         """Whale-class segments should be rewritten unless they already match the corrected class."""
