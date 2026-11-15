@@ -455,6 +455,9 @@ class TestProcessFalsePositives:
         assert mock_add_samples.call_args.kwargs["corrected_class"] == "vessel"
         assert mock_add_samples.call_args.kwargs["fallback_description"] == detection.comments
         assert mock_add_samples.call_args.kwargs["fallback_notes"] == "fp_machine"
+        assert mock_add_samples.call_args.kwargs["source_id"] == (
+            f"orcasite:{feed.node_name}:{detection.timestamp.isoformat()}"
+        )
 
         with open(manual_samples_path, "r", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))

@@ -375,6 +375,49 @@ class TestSplitWavIntoSegments:
         captured = capsys.readouterr()
         assert "Saved" in captured.out
 
+    def test_source_id_reuses_cache_across_temporary_source_paths(self, tmp_path):
+        """Stable source identities cache segments across ephemeral WAV paths."""
+        fake_probe = {"format": {"duration": "3.0"}}
+        wav_one = tmp_path / "first" / "download.wav"
+        wav_two = tmp_path / "second" / "download.wav"
+        wav_one.parent.mkdir()
+        wav_two.parent.mkdir()
+        wav_one.write_bytes(b"source one")
+        wav_two.write_bytes(b"source two")
+        output_dir = tmp_path / "segments"
+        source_id = "orcasite:rpi_orcasound_lab:2025-01-15T20:30:00+00:00"
+
+        def fake_run(*args, **kwargs):
+            segment_path = output_dir / (
+                "rpi-orcasound-lab_2025_01_15_12_30_00_PST.wav"
+            )
+            segment_path.write_bytes(b"cached segment")
+
+        with patch("add_samples.ffmpeg.probe", return_value=fake_probe), \
+             patch("add_samples.ffmpeg.run", side_effect=fake_run) as mock_run:
+            first_segments = split_wav_into_segments(
+                wav_file=str(wav_one),
+                node_name="rpi_orcasound_lab",
+                start_timestamp="2025_01_15_12_30_00_PST",
+                output_dir=output_dir,
+                source_id=source_id,
+            )
+            second_segments = split_wav_into_segments(
+                wav_file=str(wav_two),
+                node_name="rpi_orcasound_lab",
+                start_timestamp="2025_01_15_12_30_00_PST",
+                output_dir=output_dir,
+                source_id=source_id,
+            )
+
+        mock_run.assert_called_once()
+        assert first_segments == second_segments
+        metadata_path = first_segments[0][0].with_name(
+            f"{first_segments[0][0].name}.metadata.json"
+        )
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        assert metadata["source"] == {"source_id": source_id}
+
     @pytest.mark.parametrize(
         ("metadata_key", "metadata_value"),
         [

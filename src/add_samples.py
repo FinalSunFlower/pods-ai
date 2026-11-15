@@ -348,6 +348,7 @@ def split_wav_into_segments(
     segment_duration: int = SEGMENT_DURATION,
     hop_duration: int = HOP_DURATION,
     source_uri: Optional[str] = None,
+    source_id: Optional[str] = None,
 ) -> list[tuple[Path, str]]:
     """
     Split a 60-second audio sample into fixed-duration segments with a hop and save to output_dir.
@@ -365,6 +366,7 @@ def split_wav_into_segments(
         segment_duration: Duration of each segment in seconds (default: 3).
         hop_duration: Hop size between segment start times in seconds (default: 2).
         source_uri: Stable source identifier for downloaded audio, when available.
+        source_id: Stable cache identity for audio whose local path is temporary.
 
     Returns:
         List of (segment_path, timestamp_str) tuples for each saved segment,
@@ -392,7 +394,9 @@ def split_wav_into_segments(
     # Replace underscores with hyphens in the node name (matches download_wavs.py convention).
     node_name_in_filename = node_name.replace("_", "-")
     source_metadata: dict[str, object]
-    if source_uri is not None:
+    if source_id is not None:
+        source_metadata = {"source_id": source_id}
+    elif source_uri is not None:
         source_metadata = {"uri": source_uri}
     else:
         source_path = Path(wav_file)
@@ -509,7 +513,8 @@ def add_training_3s_samples(
     corrected_class: Optional[str] = None,
     fallback_description: Optional[str] = None,
     fallback_notes: Optional[str] = None,
-    fallback_tags: Optional[str] = None
+    fallback_tags: Optional[str] = None,
+    source_id: Optional[str] = None,
 ) -> list[dict]:
     """
     Split a 60-second audio sample into 3-second segments, save them, and run inference on each.
@@ -552,6 +557,7 @@ def add_training_3s_samples(
             in detections.csv. Defaults to "manual" when not provided.
         fallback_tags: Optional tags to use when the detection is not found
             in detections.csv. Defaults to None when not provided.
+        source_id: Stable cache identity for temporary source WAV files.
 
     Returns:
         List of dictionaries with keys matching manual_samples.csv format:
@@ -635,6 +641,7 @@ def add_training_3s_samples(
         start_timestamp,
         out_dir,
         source_uri=uri,
+        source_id=source_id,
     )
 
     # Clean up temporary directory if we downloaded the file.

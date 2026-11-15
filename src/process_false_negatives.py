@@ -195,6 +195,10 @@ def process_false_negatives(
                         fallback_description=detection.comments,
                         fallback_notes="tp_machine",
                         fallback_tags=detection.tags,
+                        source_id=(
+                            f"orcasite:{feed.node_name}:"
+                            f"{detection.timestamp.isoformat()}"
+                        ),
                     )
                 except Exception as exc:
                     print(f"Skipping {feed.node_name} {timestamp_str}: processing failed ({exc}).")
