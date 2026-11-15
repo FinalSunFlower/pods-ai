@@ -102,7 +102,7 @@ class TestAppendManualSamples:
         manual_samples_path = tmp_path / "manual_samples.csv"
         manual_samples_path.write_text(
             "Category,NodeName,StartTimestamp,URI,Description,Notes,Confidence\n"
-            "vessel,rpi_test,2025_01_01_00_00_00_PST,https://example.com/existing,desc,notes,90.0\n",
+            "vessel,rpi_test,2025_01_01_00_00_02_PST,https://example.com/existing,desc,notes,90.0\n",
             encoding="utf-8",
         )
         existing_uris = {"https://example.com/existing"}
@@ -110,7 +110,7 @@ class TestAppendManualSamples:
             {
                 "Category": "vessel",
                 "NodeName": "rpi_test",
-                "StartTimestamp": "2025_01_01_00_00_00_PST",
+                "StartTimestamp": "2025_01_01_00_00_02_PST",
                 "URI": "https://example.com/existing",
                 "Description": "desc",
                 "Notes": "notes",
@@ -119,7 +119,7 @@ class TestAppendManualSamples:
             {
                 "Category": "vessel",
                 "NodeName": "rpi_test",
-                "StartTimestamp": "2025_01_01_00_00_02_PST",
+                "StartTimestamp": "2025_01_01_00_00_04_PST",
                 "URI": "https://example.com/new",
                 "Description": "desc",
                 "Notes": "notes",
@@ -172,7 +172,7 @@ class TestProcessFalsePositives:
         testing_row = {
             "Category": "vessel",
             "NodeName": "rpi_test",
-            "StartTimestamp": "2025_01_01_03_59_58_PST",
+            "StartTimestamp": "2025_01_01_04_00_00_PST",
             "URI": "https://example.com/testing",
             "Description": "Boat noise from a nearby vessel.",
             "Notes": "fp_machine",
@@ -211,7 +211,7 @@ class TestProcessFalsePositives:
         mock_add_training.assert_not_called()
         assert mock_add_testing.call_count == 1
         assert mock_add_testing.call_args.kwargs["corrected_class"] == "vessel"
-        assert mock_add_testing.call_args.kwargs["start_timestamp"] == "2025_01_01_03_59_58_PST"
+        assert mock_add_testing.call_args.kwargs["start_timestamp"] == "2025_01_01_04_00_00_PST"
         assert mock_add_testing.call_args.kwargs["fallback_description"] == detection.comments
         assert mock_add_testing.call_args.kwargs["fallback_notes"] == "fp_machine"
         assert mock_add_testing.call_args.kwargs["fallback_tags"] == detection.tags
@@ -249,7 +249,7 @@ class TestProcessFalsePositives:
         testing_row = {
             "Category": "vessel",
             "NodeName": "rpi_test",
-            "StartTimestamp": "2025_01_01_03_59_58_PST",
+            "StartTimestamp": "2025_01_01_04_00_00_PST",
             "URI": "https://example.com/testing",
             "Description": "Boat noise from a nearby vessel.",
             "Notes": "fp_machine",
@@ -344,13 +344,13 @@ class TestProcessFalsePositives:
             writer.writerow({
                 "Category": "vessel",
                 "NodeName": "rpi_test",
-                "StartTimestamp": "2025_01_01_03_59_00_PST",
+                "StartTimestamp": "2025_01_01_03_59_02_PST",
                 "URI": "https://example.com/testing",
             })
         segment = {
             "Category": "resident",
             "NodeName": "rpi_test",
-            "StartTimestamp": "2025_01_01_03_59_58_PST",
+            "StartTimestamp": "2025_01_01_04_00_00_PST",
             "URI": "https://example.com/training",
         }
         with patch("process_false_positives.DEFAULT_TESTING_SAMPLES_CSV", str(testing_path)), \

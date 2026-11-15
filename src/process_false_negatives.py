@@ -52,7 +52,6 @@ DEFAULT_TESTING_SAMPLES_CSV = "output/csv/testing_60s_samples.csv"
 DEFAULT_ORCAHELLO_MODEL_PATH = "orcasound/orcahello-srkw-detector-v1"
 TRAINING_SAMPLE_DURATION_SECONDS = 3
 TESTING_SAMPLE_DURATION_SECONDS = 60
-AUDIO_OFFSET_SECONDS = 2
 WHALE_CLASSES = {"resident", "transient", "humpback"}
 
 
@@ -136,8 +135,6 @@ def process_false_negatives(
 
             summary["confirmed"] += 1
             sample_timestamp = detection.timestamp
-            if not for_training:
-                sample_timestamp -= timedelta(seconds=AUDIO_OFFSET_SECONDS)
             timestamp_str = format_timestamp_pacific(sample_timestamp)
             print(f"Checking confirmed SRKW detection at {timestamp_str} by model {model_id}")
 

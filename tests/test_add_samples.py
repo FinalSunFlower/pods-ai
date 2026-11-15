@@ -128,7 +128,7 @@ def test_parse_uri_returns_correct_timestamp():
     assert timestamp == "2025_01_01_00_00_02_PST"
 
 
-def test_corrected_training_timestamp_matches_orcasite_manifest_time(tmp_path):
+def test_detection_lookup_matches_corrected_manifest_timestamp(tmp_path):
     detections_csv = tmp_path / "detections.csv"
     with detections_csv.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.DictWriter(
@@ -138,7 +138,7 @@ def test_corrected_training_timestamp_matches_orcasite_manifest_time(tmp_path):
         writer.writeheader()
         writer.writerow({
             "NodeName": "rpi_sunset_bay",
-            "StartTimestamp": "2025_01_15_12_30_00_PST",
+            "StartTimestamp": "2025_01_15_12_30_02_PST",
             "URI": "https://example.com/orcasite-time",
             "Description": "Existing detection",
             "Notes": "fp_machine_only",
@@ -149,7 +149,6 @@ def test_corrected_training_timestamp_matches_orcasite_manifest_time(tmp_path):
         "rpi_sunset_bay",
         "2025_01_15_12_30_02_PST",
         str(detections_csv),
-        orcasite_offset_seconds=2,
     )
 
     assert result is not None
@@ -241,7 +240,7 @@ class TestSplitWavIntoSegments:
             segments = split_wav_into_segments(
                 wav_file="fake.wav",
                 node_name="rpi_orcasound_lab",
-                start_timestamp="2025_01_15_12_30_00_PST",
+                start_timestamp="2025_01_15_12_30_02_PST",
                 output_dir=tmp_path,
             )
 
@@ -473,13 +472,13 @@ class TestAddSamples:
 
     def _fake_split(self, tmp_path):
         """Return a fake segments list with two pre-created files."""
-        seg1 = tmp_path / "rpi-orcasound-lab_2025_01_15_12_30_00_PST.wav"
-        seg2 = tmp_path / "rpi-orcasound-lab_2025_01_15_12_30_02_PST.wav"
+        seg1 = tmp_path / "rpi-orcasound-lab_2025_01_15_12_30_02_PST.wav"
+        seg2 = tmp_path / "rpi-orcasound-lab_2025_01_15_12_30_04_PST.wav"
         seg1.write_bytes(b"")
         seg2.write_bytes(b"")
         return [
-            (seg1, "2025_01_15_12_30_00_PST"),
-            (seg2, "2025_01_15_12_30_02_PST"),
+            (seg1, "2025_01_15_12_30_02_PST"),
+            (seg2, "2025_01_15_12_30_04_PST"),
         ]
 
     def test_returns_list_of_dicts_with_manual_samples_format(self, tmp_path):
@@ -499,7 +498,7 @@ class TestAddSamples:
             results = add_training_3s_samples(
                 wav_file="fake.wav",
                 node_name="rpi_orcasound_lab",
-                start_timestamp="2025_01_15_12_30_00_PST",
+                start_timestamp="2025_01_15_12_30_02_PST",
                 output_dir=str(tmp_path),
                 model_path="/path/to/model",
             )
@@ -509,14 +508,14 @@ class TestAddSamples:
             assert isinstance(row, dict)
             assert row["Category"] == "water"
             assert row["NodeName"] == "rpi_orcasound_lab"
-            assert row["StartTimestamp"] in ["2025_01_15_12_30_00_PST", "2025_01_15_12_30_02_PST"]
+            assert row["StartTimestamp"] in ["2025_01_15_12_30_02_PST", "2025_01_15_12_30_04_PST"]
             assert row["URI"] == "https://example.com/test"
             assert row["Description"] == ""
             assert row["Notes"] == "manual"
             assert row["Confidence"] == "92.0"  # Confidence is percentage string (0.92 * 100 = 92.0)
 
     def test_training_timestamp_is_two_seconds_after_uri_time(self, tmp_path):
-        segment_path = tmp_path / "rpi-test_2025_01_01_00_00_00_PST.wav"
+        segment_path = tmp_path / "rpi-test_2025_01_01_00_00_02_PST.wav"
         segment_path.write_bytes(b"")
         mock_model = MagicMock()
         mock_model.predict.return_value = {
@@ -526,21 +525,21 @@ class TestAddSamples:
 
         with patch(
             "add_samples.split_wav_into_segments",
-            return_value=[(segment_path, "2025_01_01_00_00_00_PST")],
+            return_value=[(segment_path, "2025_01_01_00_00_02_PST")],
         ), patch("add_samples.lookup_detection_in_csv", return_value=None), patch(
             "add_samples.get_node_slug", return_value="test"
         ):
             rows = add_training_3s_samples(
                 wav_file="fake.wav",
                 node_name="rpi_test",
-                start_timestamp="2025_01_01_00_00_00_PST",
+                start_timestamp="2025_01_01_00_00_02_PST",
                 output_dir=str(tmp_path),
                 model=mock_model,
             )
 
-        assert rows[0]["StartTimestamp"] == "2025_01_01_00_00_00_PST"
+        assert rows[0]["StartTimestamp"] == "2025_01_01_00_00_02_PST"
         assert rows[0]["URI"] == (
-            "https://live.orcasound.net/bouts/new/test?time=2025-01-01T07%3A59%3A58.000Z"
+            "https://live.orcasound.net/bouts/new/test?time=2025-01-01T08%3A00%3A00.000Z"
         )
 
     def test_uri_download_uses_orcasite_end_time_and_keeps_corrected_timestamp(self, tmp_path):
@@ -594,7 +593,7 @@ class TestAddSamples:
             add_training_3s_samples(
                 wav_file="fake.wav",
                 node_name="rpi_orcasound_lab",
-                start_timestamp="2025_01_15_12_30_00_PST",
+                start_timestamp="2025_01_15_12_30_02_PST",
                 output_dir=str(tmp_path),
             )
 
@@ -676,7 +675,7 @@ class TestAddSamples:
         assert [row["Category"] for row in results] == ["vessel", "resident"]
         captured = capsys.readouterr()
         assert "vessel,rpi_orcasound_lab,2025_01_15_12_30_00_PST" not in captured.out
-        assert "vessel,rpi_orcasound_lab,2025_01_15_12_30_02_PST" in captured.out
+        assert "vessel,rpi_orcasound_lab,2025_01_15_12_30_04_PST" in captured.out
 
     def test_printed_rows_are_valid_csv_with_special_description(self, tmp_path, capsys):
         """Printed CSV rows should remain valid when description contains commas/newlines."""
@@ -878,7 +877,7 @@ class TestAddTesting60sSample:
              patch("add_samples.generate_uri", return_value="https://example.com/test"):
             row = add_testing_60s_sample(
                 node_name="rpi_orcasound_lab",
-                start_timestamp="2025_01_15_12_30_00_PST",
+                start_timestamp="2025_01_15_12_30_02_PST",
                 corrected_class="vessel",
                 fallback_description="fallback description",
                 fallback_notes="fallback notes",
@@ -887,7 +886,7 @@ class TestAddTesting60sSample:
 
         mock_lookup.assert_called_once_with(
             "rpi_orcasound_lab",
-            "2025_01_15_12_30_00_PST",
+            "2025_01_15_12_30_02_PST",
             "output/csv/testing_60s_samples.csv",
         )
         assert row["Description"] == "from detections"
@@ -898,10 +897,10 @@ class TestAddTesting60sSample:
     def test_uses_fallback_metadata_when_detection_missing(self):
         """Rows should use fallback description/notes/tags when detections.csv has no match."""
         with patch("add_samples.lookup_detection_in_csv", return_value=None), \
-             patch("add_samples.generate_uri", return_value="https://example.com/test"):
+             patch("add_samples.generate_uri", return_value="https://example.com/test") as mock_generate_uri:
             row = add_testing_60s_sample(
                 node_name="rpi_orcasound_lab",
-                start_timestamp="2025_01_15_12_30_00_PST",
+                start_timestamp="2025_01_15_12_30_02_PST",
                 corrected_class="vessel",
                 fallback_description="  fallback description  ",
                 fallback_notes="  fp_machine  ",
@@ -912,6 +911,10 @@ class TestAddTesting60sSample:
         assert row["Notes"] == "fp_machine"
         assert row["Tags"] == "vessel"
         assert row["Category"] == "vessel"
+        assert row["StartTimestamp"] == "2025_01_15_12_30_02_PST"
+        mock_generate_uri.assert_called_once_with(
+            "rpi_orcasound_lab", "2025_01_15_12_30_00_PST"
+        )
 
 
 class TestMain:

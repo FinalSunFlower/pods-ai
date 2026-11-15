@@ -151,10 +151,9 @@ def build_training_row(
     hop_duration: float,
 ) -> dict[str, str]:
     """Compose a training_3s_samples-style row for one segment proposal."""
-    clip_start = (
-        parse_timestamp_pacific((testing_row.get("StartTimestamp") or "").strip()).astimezone(timezone.utc)
-        + timedelta(seconds=ORCASITE_OFFSET_SECONDS)
-    )
+    clip_start = parse_timestamp_pacific(
+        (testing_row.get("StartTimestamp") or "").strip()
+    ).astimezone(timezone.utc)
     segment_timestamp = format_timestamp_pacific(
         clip_start + timedelta(seconds=segment_index * float(hop_duration))
     )

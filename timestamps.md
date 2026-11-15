@@ -38,9 +38,10 @@ and the incorrect time for other audio.
 
 The URIs in the csv files in this repository go to the Orcasite bouts interface and so
 are intentionally off by 2 seconds.  That is, the URIs do not use the detection time, they show "Orcasite" time.
-The `StartTimestamp` column of `training_3s_samples.csv` uses the correct start time, so it is 2 seconds later
-than the timestamp in its URI.  In this repository, `download_audio_segment()` in `download_wavs.py` converts
-the corrected timestamp back to Orcasite time to find the audio to download.
+The `StartTimestamp` column in all sample manifests, including `training_3s_samples.csv` and
+`testing_60s_samples.csv`, uses the corrected start time. It is 2 seconds later than the timestamp in its
+Orcasite URI. In this repository, `download_audio_segment()` in `download_wavs.py` accounts for the HLS
+audio-start offset when locating the audio to download.
 
 ## OrcaHello database
 

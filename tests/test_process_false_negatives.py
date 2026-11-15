@@ -53,7 +53,7 @@ class TestAppendManualSamples:
         manual_samples_path = tmp_path / "manual_samples.csv"
         manual_samples_path.write_text(
             "Category,NodeName,StartTimestamp,URI,Description,Notes,Confidence\n"
-            "resident,rpi_test,2025_01_01_00_00_00_PST,https://example.com/existing,desc,notes,90.0\n",
+            "resident,rpi_test,2025_01_01_00_00_02_PST,https://example.com/existing,desc,notes,90.0\n",
             encoding="utf-8",
         )
         existing_uris = {"https://example.com/existing"}
@@ -61,7 +61,7 @@ class TestAppendManualSamples:
             {
                 "Category": "resident",
                 "NodeName": "rpi_test",
-                "StartTimestamp": "2025_01_01_00_00_00_PST",
+                "StartTimestamp": "2025_01_01_00_00_02_PST",
                 "URI": "https://example.com/existing",
                 "Description": "desc",
                 "Notes": "notes",
@@ -70,7 +70,7 @@ class TestAppendManualSamples:
             {
                 "Category": "resident",
                 "NodeName": "rpi_test",
-                "StartTimestamp": "2025_01_01_00_00_02_PST",
+                "StartTimestamp": "2025_01_01_00_00_04_PST",
                 "URI": "https://example.com/new",
                 "Description": "desc",
                 "Notes": "notes",
@@ -277,7 +277,7 @@ class TestProcessFalseNegatives:
         wav_path.write_bytes(b"wav")
         segment_dir = tmp_path / "segments"
         segment_dir.mkdir()
-        segment_timestamp = "2025_01_01_03_59_58_PST"
+        segment_timestamp = "2025_01_01_04_00_00_PST"
         (segment_dir / f"rpi-test_{segment_timestamp}.wav").write_bytes(b"segment")
         testing_path = tmp_path / "testing_60s_samples.csv"
         with open(testing_path, "w", newline="", encoding="utf-8") as handle:
@@ -286,7 +286,7 @@ class TestProcessFalseNegatives:
             writer.writerow({
                 "Category": "vessel",
                 "NodeName": "rpi_test",
-                "StartTimestamp": "2025_01_01_03_59_00_PST",
+                "StartTimestamp": "2025_01_01_03_59_02_PST",
                 "URI": "https://example.com/testing",
             })
         segment = {
@@ -451,7 +451,7 @@ class TestProcessFalseNegatives:
         testing_row = {
             "Category": "resident",
             "NodeName": "rpi_test",
-            "StartTimestamp": "2025_01_01_03_59_58_PST",
+            "StartTimestamp": "2025_01_01_04_00_00_PST",
             "URI": "https://example.com/testing",
             "Tags": "resident",
         }
@@ -479,7 +479,7 @@ class TestProcessFalseNegatives:
         assert summary["appended"] == 1
         add_testing.assert_called_once_with(
             node_name="rpi_test",
-            start_timestamp="2025_01_01_03_59_58_PST",
+            start_timestamp="2025_01_01_04_00_00_PST",
             detections_csv=false_negatives_module.DEFAULT_DETECTIONS_CSV,
             corrected_class="resident",
             fallback_description="confirmed resident",

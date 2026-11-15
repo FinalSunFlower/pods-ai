@@ -47,7 +47,6 @@ DEFAULT_TRAINING_SAMPLES_CSV = "output/csv/training_3s_samples.csv"
 DEFAULT_TESTING_SAMPLES_CSV = "output/csv/testing_60s_samples.csv"
 TRAINING_SAMPLE_DURATION_SECONDS = 3
 TESTING_SAMPLE_DURATION_SECONDS = 60
-AUDIO_OFFSET_SECONDS = 2
 BIRD_TERMS = ("bird", "pigu", "keir")
 RESIDENT_TERMS = ("resident", "pod")
 TRANSIENT_TERMS = ("bigg", "transient")
@@ -198,8 +197,6 @@ def process_false_positives(
                 continue
 
             sample_timestamp = detection.timestamp
-            if not for_training:
-                sample_timestamp -= timedelta(seconds=AUDIO_OFFSET_SECONDS)
             timestamp_str_pst = format_timestamp_pacific(sample_timestamp)
             summary["rejected"] += 1
             corrected_class = get_corrected_class(detection.comments, detection.tags)
