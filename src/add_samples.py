@@ -65,6 +65,7 @@ from urllib.parse import quote, urlparse, parse_qs
 import ffmpeg
 from pytz import timezone
 
+from model_inference import get_model_inference
 from orcasite_feeds import get_orcasite_feeds, OrcasiteFeed
 from audio_utils import (
     download_60s_audio,
@@ -91,13 +92,6 @@ _FILENAME_PATTERN = re.compile(
 
 # Cache for Orcasite feeds to avoid repeated API calls.
 _FEEDS_CACHE: Optional[list[OrcasiteFeed]] = None
-
-
-def get_model_inference(*args, **kwargs):
-    """Load model inference lazily so data utilities do not require ML binaries."""
-    from model_inference import get_model_inference as load_model_inference
-
-    return load_model_inference(*args, **kwargs)
 
 
 @dataclass
