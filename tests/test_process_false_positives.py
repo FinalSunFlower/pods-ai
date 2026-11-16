@@ -210,7 +210,7 @@ class TestProcessFalsePositives:
         mock_get_model.return_value.predict.assert_called_once_with(str(wav_path))
         mock_download.assert_called_once_with(
             node_name="rpi_test",
-            min_end_timestamp_pst_str="2025_01_01_04_01_00_PST",
+            min_end_timestamp_pst_str="2025_01_01_04_01_02_PST",
             tmp_dir=ANY,
         )
         mock_add_training.assert_not_called()
@@ -374,7 +374,7 @@ class TestProcessFalsePositives:
         assert summary["overlaps"] == 1
         mock_download.assert_called_once_with(
             node_name="rpi_test",
-            min_end_timestamp_pst_str="2025_01_01_04_00_59_PST",
+            min_end_timestamp_pst_str="2025_01_01_04_01_01_PST",
             tmp_dir=ANY,
         )
 

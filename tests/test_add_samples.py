@@ -732,7 +732,7 @@ class TestAddSamples:
         mock_download.assert_called_once()
         assert mock_download.call_args.kwargs["node_name"] == "rpi_test"
         assert mock_download.call_args.kwargs["min_end_timestamp_pst_str"] == (
-            "2025_01_01_00_01_00_PST"
+            "2025_01_01_00_01_02_PST"
         )
         assert mock_split.call_args.kwargs["source_uri"] == source_uri
         assert rows[0]["StartTimestamp"] == corrected_timestamp

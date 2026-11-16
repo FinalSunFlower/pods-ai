@@ -29,7 +29,6 @@ from add_samples import (
     DEFAULT_DETECTIONS_CSV,
     DEFAULT_MODEL_PATH,
     DEFAULT_OUTPUT_DIR,
-    ORCASITE_OFFSET_SECONDS,
     add_training_3s_samples,
     add_testing_60s_sample,
 )
@@ -222,9 +221,7 @@ def process_false_positives(
                     print(f"Checking rejected detection at {timestamp_str_pst}")
 
                     min_end_timestamp_pst_str = format_timestamp_pacific(
-                        detection.timestamp
-                        - timedelta(seconds=ORCASITE_OFFSET_SECONDS)
-                        + timedelta(seconds=60)
+                        detection.timestamp + timedelta(seconds=60)
                     )
                     wav_path = download_60s_audio(node_name=feed.node_name, min_end_timestamp_pst_str=min_end_timestamp_pst_str, tmp_dir=temp_dir)
                     if wav_path is None:
@@ -262,9 +259,7 @@ def process_false_positives(
                     print(f"Checking rejected detection at {timestamp_str_pst}")
 
                     min_end_timestamp_pst_str = format_timestamp_pacific(
-                        detection.timestamp
-                        - timedelta(seconds=ORCASITE_OFFSET_SECONDS)
-                        + timedelta(seconds=60)
+                        detection.timestamp + timedelta(seconds=60)
                     )
                     wav_path = download_60s_audio(node_name=feed.node_name, min_end_timestamp_pst_str=min_end_timestamp_pst_str, tmp_dir=temp_dir)
                     if wav_path is None:

@@ -482,7 +482,7 @@ class TestProcessFalseNegatives:
         assert summary["appended"] == 1
         mock_download.assert_called_once_with(
             node_name="rpi_test",
-            min_end_timestamp_pst_str="2025_01_01_04_00_59_PST",
+            min_end_timestamp_pst_str="2025_01_01_04_01_01_PST",
             tmp_dir=ANY,
         )
         add_testing.assert_called_once_with(
