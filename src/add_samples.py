@@ -53,6 +53,7 @@ import csv
 import json
 import os
 import re
+import shutil
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -411,7 +412,7 @@ def split_wav_into_segments(
                 "mtime_ns": source_stat.st_mtime_ns,
             }
 
-    segments: list[tuple[Path, str]] = []
+    segment_jobs: list[tuple[int, str, Path, Path, dict[str, object]]] = []
     for pos_idx in range(num_positions):
         start_offset = pos_idx * hop_duration
         seg_time = start_time + timedelta(seconds=start_offset)
@@ -426,50 +427,80 @@ def split_wav_into_segments(
             "segment_duration_seconds": segment_duration,
             "hop_duration_seconds": hop_duration,
         }
+        segment_jobs.append(
+            (start_offset, timestamp_str, out_path, metadata_path, segment_metadata)
+        )
 
-        if out_path.exists():
+    source_path = Path(wav_file)
+    extraction_source = wav_file
+    source_copy_dir = None
+    segments: list[tuple[Path, str]] = []
+    try:
+        for _, _, out_path, _, _ in segment_jobs:
             try:
-                cached_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError, json.JSONDecodeError):
-                cached_metadata = None
-            if cached_metadata == segment_metadata:
-                print(f"Skipping (already exists): {out_path}")
-                segments.append((out_path, timestamp_str))
-                continue
-
-            preserved_path = out_path.with_name(f"{out_path.name}.unverified")
-            suffix = 1
-            while preserved_path.exists():
-                preserved_path = out_path.with_name(f"{out_path.name}.unverified.{suffix}")
-                suffix += 1
-            os.replace(out_path, preserved_path)
-            if metadata_path.exists():
-                preserved_metadata_path = preserved_path.with_name(
-                    f"{preserved_path.name}.metadata.json"
+                same_file = (
+                    source_path.exists()
+                    and out_path.exists()
+                    and os.path.samefile(source_path, out_path)
                 )
-                os.replace(metadata_path, preserved_metadata_path)
+            except OSError:
+                same_file = False
+            if same_file or source_path.resolve() == out_path.resolve():
+                source_copy_dir = TemporaryDirectory(prefix="add-samples-source-")
+                source_copy = Path(source_copy_dir.name) / source_path.name
+                shutil.copy2(source_path, source_copy)
+                extraction_source = str(source_copy)
+                break
 
-        try:
-            stream = ffmpeg.input(wav_file, ss=start_offset)
-            stream = ffmpeg.output(
-                stream,
-                str(out_path),
-                t=segment_duration,
-                acodec="pcm_s16le",
-                ar=44100,
-                ac=1,
-            )
-            ffmpeg.run(stream, overwrite_output=True, quiet=True)
-            metadata_path.write_text(
-                json.dumps(segment_metadata, sort_keys=True), encoding="utf-8"
-            )
-            print(f"Saved: {out_path}")
-            segments.append((out_path, timestamp_str))
-        except Exception as e:
-            print(
-                f"Warning: Failed to extract segment at offset {start_offset}s: {e}",
-                file=sys.stderr,
-            )
+        for start_offset, timestamp_str, out_path, metadata_path, segment_metadata in segment_jobs:
+            if out_path.exists():
+                try:
+                    cached_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, json.JSONDecodeError):
+                    cached_metadata = None
+                if cached_metadata == segment_metadata:
+                    print(f"Skipping (already exists): {out_path}")
+                    segments.append((out_path, timestamp_str))
+                    continue
+
+                preserved_path = out_path.with_name(f"{out_path.name}.unverified")
+                suffix = 1
+                while preserved_path.exists():
+                    preserved_path = out_path.with_name(f"{out_path.name}.unverified.{suffix}")
+                    suffix += 1
+                os.replace(out_path, preserved_path)
+                if metadata_path.exists():
+                    preserved_metadata_path = preserved_path.with_name(
+                        f"{preserved_path.name}.metadata.json"
+                    )
+                    os.replace(metadata_path, preserved_metadata_path)
+
+            try:
+                stream = ffmpeg.input(extraction_source, ss=start_offset)
+                stream = ffmpeg.output(
+                    stream,
+                    str(out_path),
+                    t=segment_duration,
+                    acodec="pcm_s16le",
+                    ar=44100,
+                    ac=1,
+                )
+                ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                metadata_path.write_text(
+                    json.dumps(segment_metadata, sort_keys=True), encoding="utf-8"
+                )
+                print(f"Saved: {out_path}")
+                segments.append((out_path, timestamp_str))
+            except Exception as e:
+                out_path.unlink(missing_ok=True)
+                metadata_path.unlink(missing_ok=True)
+                print(
+                    f"Warning: Failed to extract segment at offset {start_offset}s: {e}",
+                    file=sys.stderr,
+                )
+    finally:
+        if source_copy_dir is not None:
+            source_copy_dir.cleanup()
 
     return segments
 
