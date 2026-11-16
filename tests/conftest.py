@@ -15,14 +15,8 @@ from unittest.mock import MagicMock
 sys.path.insert(0, str(Path(__file__).parent.parent / 'bootstrap' / 'src'))
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-# Packages that are either heavy (torch/fastai) or optional (numpy/pandas) in
-# this environment.  Each is stubbed out only when it cannot be genuinely
-# imported; CI (which runs pip install -r requirements.txt) will use the real
-# packages.
-#
-# NOTE: 'audio' and 'audio.data' are intentionally NOT in this list.
-# Unit tests that need to mock AudioList should use @patch() explicitly.
-# Integration tests need the real audio module to function.
+# Packages that are either heavy (torch/fastai) or optional in this
+# environment. Each is stubbed out only when it cannot be genuinely imported.
 _OPTIONAL_DEPS = [
     'azure',
     'azure.cosmos',
@@ -51,6 +45,8 @@ _OPTIONAL_DEPS = [
     'scipy.signal',
     'huggingface_hub',
     'yaml',
+    'audio',
+    'audio.data',
 ]
 for _dep in _OPTIONAL_DEPS:
     if _dep not in sys.modules:

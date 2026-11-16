@@ -367,6 +367,36 @@ def split_wav_into_segments(
         List of (segment_path, timestamp_str) tuples for each saved segment,
         in order of increasing start time.
     """
+    source_path = Path(wav_file)
+    resolved_source_path = source_path.resolve()
+    resolved_output_dir = output_dir.resolve()
+    filename_prefix = f"{node_name.replace('_', '-')}_"
+    if (
+        resolved_source_path.exists()
+        and resolved_source_path.parent == resolved_output_dir
+        and resolved_source_path.stem.startswith(filename_prefix)
+        and hop_duration > 0
+    ):
+        candidate_timestamp = resolved_source_path.stem[len(filename_prefix):]
+        try:
+            candidate_time = parse_timestamp_pacific(candidate_timestamp)
+            start_time = parse_timestamp_pacific(start_timestamp)
+        except ValueError:
+            pass
+        else:
+            offset_seconds = (
+                candidate_time.astimezone(UTC_TZ) - start_time.astimezone(UTC_TZ)
+            ).total_seconds()
+            if offset_seconds >= 0 and offset_seconds % hop_duration == 0:
+                expected_output = resolved_output_dir / (
+                    f"{filename_prefix}"
+                    f"{format_timestamp_pacific(start_time + timedelta(seconds=offset_seconds))}.wav"
+                )
+                if resolved_source_path == expected_output.resolve():
+                    raise ValueError(
+                        f"Input WAV path collides with an output segment path: {source_path}"
+                    )
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Probe the audio file to get duration.
@@ -425,7 +455,6 @@ def split_wav_into_segments(
             (start_offset, timestamp_str, out_path, metadata_path, segment_metadata)
         )
 
-    source_path = Path(wav_file)
     extraction_source = wav_file
     source_copy_dir = None
     segments: list[tuple[Path, str]] = []

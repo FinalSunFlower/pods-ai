@@ -7,7 +7,6 @@ import io
 import json
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -376,45 +375,30 @@ class TestSplitWavIntoSegments:
         captured = capsys.readouterr()
         assert "Saved" in captured.out
 
-    def test_preserves_source_when_it_collides_with_first_segment_path(self, tmp_path):
-        """All offsets must read the original WAV even if the first output replaces it."""
-        source_path = tmp_path / "rpi-orcasound-lab_2025_01_15_12_30_00_PST.wav"
-        source_path.write_bytes(b"original source audio")
-        input_paths = []
-        input_contents = []
+    @pytest.mark.parametrize(
+        "collision_timestamp",
+        ["2025_01_15_12_30_00_PST", "2025_01_15_12_30_02_PST"],
+    )
+    def test_rejects_input_that_collides_with_a_segment_path(
+        self, tmp_path, collision_timestamp
+    ):
+        """A colliding input is rejected before probing or modifying the source."""
+        source_path = tmp_path / f"rpi-orcasound-lab_{collision_timestamp}.wav"
+        original_contents = b"original source audio"
+        source_path.write_bytes(original_contents)
 
-        def fake_input(path, **_kwargs):
-            input_path = Path(path)
-            input_paths.append(input_path)
-            input_contents.append(input_path.read_bytes())
-            return MagicMock()
+        with patch("add_samples.ffmpeg.probe") as mock_probe:
+            with pytest.raises(ValueError, match="collides with an output segment path"):
+                split_wav_into_segments(
+                    wav_file=str(source_path),
+                    node_name="rpi_orcasound_lab",
+                    start_timestamp="2025_01_15_12_30_00_PST",
+                    output_dir=tmp_path,
+                )
 
-        def fake_output(_stream, output_path, **_kwargs):
-            return Path(output_path)
-
-        def fake_run(output_path, **_kwargs):
-            Path(output_path).write_bytes(b"extracted segment")
-
-        with patch("add_samples.ffmpeg.probe", return_value={"format": {"duration": "5.0"}}), \
-             patch("add_samples.ffmpeg.input", side_effect=fake_input), \
-             patch("add_samples.ffmpeg.output", side_effect=fake_output), \
-             patch("add_samples.ffmpeg.run", side_effect=fake_run):
-            segments = split_wav_into_segments(
-                wav_file=str(source_path),
-                node_name="rpi_orcasound_lab",
-                start_timestamp="2025_01_15_12_30_00_PST",
-                output_dir=tmp_path,
-            )
-
-        assert len(segments) == 2
-        assert all(path.is_file() for path, _ in segments)
-        assert len(set(input_paths)) == 1
-        assert input_paths[0] != source_path
-        assert input_contents == [b"original source audio"] * 2
-        assert not input_paths[0].exists()
-        assert source_path.with_name(f"{source_path.name}.unverified").read_bytes() == (
-            b"original source audio"
-        )
+        mock_probe.assert_not_called()
+        assert source_path.read_bytes() == original_contents
+        assert not source_path.with_name(f"{source_path.name}.unverified").exists()
 
     def test_cleans_partial_output_and_metadata_when_extraction_fails(self, tmp_path):
         """A failed ffmpeg run must not leave an output or stale sidecar metadata."""
