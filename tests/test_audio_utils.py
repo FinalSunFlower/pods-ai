@@ -47,7 +47,7 @@ def test_download_60s_audio_rounds_end_then_subtracts_clip_and_startup_offset():
     )
 
 
-def test_download_60s_audio_from_start_uses_corrected_start_without_offset():
+def test_download_60s_audio_from_start_applies_orcasite_hls_offset():
     with patch("audio_utils.download_audio_from_start_utc", return_value="clip.wav") as download:
         result = download_60s_audio_from_start(
             "rpi_test", "2025_01_01_00_00_02_PST", "tmp"
@@ -55,5 +55,5 @@ def test_download_60s_audio_from_start_uses_corrected_start_without_offset():
 
     assert result == "clip.wav"
     download.assert_called_once_with(
-        "rpi_test", datetime(2025, 1, 1, 8, 0, 2, tzinfo=timezone.utc), "tmp", 60
+        "rpi_test", datetime(2025, 1, 1, 8, 0, 0, tzinfo=timezone.utc), "tmp", 60
     )
