@@ -20,7 +20,7 @@ import csv
 import io
 import sys
 from contextlib import redirect_stdout
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
@@ -34,7 +34,7 @@ from add_samples import (
 )
 from audio_utils import (
     SKIP_TERMS,
-    download_60s_audio,
+    download_60s_audio_from_start,
     format_timestamp_pacific,
     get_machine_detections,
     parse_timestamp_pacific,
@@ -220,10 +220,11 @@ def process_false_positives(
                 if not for_training:
                     print(f"Checking rejected detection at {timestamp_str_pst}")
 
-                    min_end_timestamp_pst_str = format_timestamp_pacific(
-                        detection.timestamp + timedelta(seconds=60)
+                    wav_path = download_60s_audio_from_start(
+                        node_name=feed.node_name,
+                        start_timestamp_pst_str=timestamp_str_pst,
+                        tmp_dir=temp_dir,
                     )
-                    wav_path = download_60s_audio(node_name=feed.node_name, min_end_timestamp_pst_str=min_end_timestamp_pst_str, tmp_dir=temp_dir)
                     if wav_path is None:
                         print(f"Skipping {feed.node_name} {timestamp_str_pst}: failed to download audio.")
                         summary["download_failed"] += 1
@@ -258,10 +259,11 @@ def process_false_positives(
                 else:
                     print(f"Checking rejected detection at {timestamp_str_pst}")
 
-                    min_end_timestamp_pst_str = format_timestamp_pacific(
-                        detection.timestamp + timedelta(seconds=60)
+                    wav_path = download_60s_audio_from_start(
+                        node_name=feed.node_name,
+                        start_timestamp_pst_str=timestamp_str_pst,
+                        tmp_dir=temp_dir,
                     )
-                    wav_path = download_60s_audio(node_name=feed.node_name, min_end_timestamp_pst_str=min_end_timestamp_pst_str, tmp_dir=temp_dir)
                     if wav_path is None:
                         print(f"Skipping {feed.node_name} {timestamp_str_pst}: failed to download audio.")
                         summary["download_failed"] += 1

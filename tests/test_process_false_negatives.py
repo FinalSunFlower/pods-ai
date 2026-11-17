@@ -226,7 +226,7 @@ class TestProcessFalseNegatives:
         with patch("process_false_negatives.get_model_inference", side_effect=_get_model), \
              patch("process_false_negatives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_negatives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_negatives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_negatives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch("process_false_negatives.add_training_3s_samples", return_value=segment_rows) as mock_add_samples:
             summary = process_false_negatives(
                 manual_samples_path=manual_samples_path,
@@ -310,7 +310,7 @@ class TestProcessFalseNegatives:
              patch("process_false_negatives.get_model_inference", side_effect=get_model), \
              patch("process_false_negatives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_negatives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_negatives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_negatives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch("process_false_negatives.add_training_3s_samples", return_value=[segment]):
             summary = process_false_negatives(
                 manual_samples_path=tmp_path / "manual.csv",
@@ -346,7 +346,7 @@ class TestProcessFalseNegatives:
         with patch("process_false_negatives.get_model_inference", side_effect=_get_model), \
              patch("process_false_negatives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_negatives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_negatives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_negatives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch("process_false_negatives.add_training_3s_samples") as mock_add_samples:
             summary = process_false_negatives(
                 manual_samples_path=tmp_path / "manual_samples.csv",
@@ -407,7 +407,7 @@ class TestProcessFalseNegatives:
                  "process_false_negatives.get_machine_detections",
                  return_value=[matching_detection, non_matching_detection],
              ), \
-             patch("process_false_negatives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_negatives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch(
                  "process_false_negatives.add_training_3s_samples",
                  return_value=[
@@ -464,7 +464,7 @@ class TestProcessFalseNegatives:
              patch("process_false_negatives.get_model_inference") as get_model, \
              patch("process_false_negatives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_negatives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_negatives.download_60s_audio", return_value=str(wav_path)) as mock_download, \
+             patch("process_false_negatives.download_60s_audio_from_start", return_value=str(wav_path)) as mock_download, \
              patch(
                  "process_false_negatives.add_testing_60s_sample",
                  return_value=testing_row,
@@ -482,7 +482,7 @@ class TestProcessFalseNegatives:
         assert summary["appended"] == 1
         mock_download.assert_called_once_with(
             node_name="rpi_test",
-            min_end_timestamp_pst_str="2025_01_01_04_01_01_PST",
+            start_timestamp_pst_str="2025_01_01_04_00_01_PST",
             tmp_dir=ANY,
         )
         add_testing.assert_called_once_with(
@@ -537,7 +537,7 @@ class TestProcessFalseNegatives:
         ), patch(
             "process_false_negatives.get_model_inference",
         ), patch(
-            "process_false_negatives.download_60s_audio",
+            "process_false_negatives.download_60s_audio_from_start",
         ) as mock_download:
 
             summary = process_false_negatives(

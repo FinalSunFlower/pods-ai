@@ -322,10 +322,20 @@ def download_60s_audio(node_name: str, min_end_timestamp_pst_str: str, tmp_dir: 
     # HLS folder/segment logic. This reduces duplication and keeps behavior
     # consistent between callers that request clips by end-time vs start-time.
     end_time = _get_aligned_end_time(min_end_timestamp_pst_str)
-    audio_offset = 2 # startup delay
+    audio_offset = 2  # startup delay
     start_time = end_time - timedelta(seconds=60) - timedelta(seconds=audio_offset)
     start_time_utc = start_time.astimezone(UTC_TZ)
 
+    return download_audio_from_start_utc(node_name, start_time_utc, tmp_dir, 60)
+
+
+def download_60s_audio_from_start(
+    node_name: str,
+    start_timestamp_pst_str: str,
+    tmp_dir: str,
+) -> Optional[str]:
+    """Download 60 seconds beginning at the supplied corrected Pacific timestamp."""
+    start_time_utc = parse_timestamp_pacific(start_timestamp_pst_str).astimezone(UTC_TZ)
     return download_audio_from_start_utc(node_name, start_time_utc, tmp_dir, 60)
 
 

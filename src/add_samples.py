@@ -68,7 +68,7 @@ from pytz import timezone
 from model_inference import get_model_inference
 from orcasite_feeds import get_orcasite_feeds, OrcasiteFeed
 from audio_utils import (
-    download_60s_audio,
+    download_60s_audio_from_start,
     format_timestamp_pacific,
     parse_timestamp_pacific,
 )
@@ -644,12 +644,9 @@ def add_training_3s_samples(
 
         # Download the 60-second WAV file.
         temp_dir = TemporaryDirectory()
-        min_end_timestamp_pst_str = format_timestamp_pacific(
-            parse_timestamp_pacific(start_timestamp) + timedelta(seconds=60)
-        )
-        wav_path = download_60s_audio(
+        wav_path = download_60s_audio_from_start(
             node_name=node_name,
-            min_end_timestamp_pst_str=min_end_timestamp_pst_str,
+            start_timestamp_pst_str=start_timestamp,
             tmp_dir=temp_dir.name)
 
         if wav_path is None:

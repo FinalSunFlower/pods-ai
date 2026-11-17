@@ -8,6 +8,7 @@ be imported directly, and mocks heavy dependencies (ML, audio) that are not
 needed for unit tests so the suite can run without a full GPU/fastai environment.
 """
 import sys
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -48,12 +49,43 @@ _OPTIONAL_DEPS = [
     'audio',
     'audio.data',
 ]
+_OPTIONAL_PACKAGE_DEPS = {
+    'audio',
+    'audio.data',
+    'azure',
+    'azure.cosmos',
+    'azure.storage.blob',
+    'dotenv',
+    'fastai',
+    'huggingface_hub',
+    'librosa',
+    'numpy',
+    'opencensus',
+    'pandas',
+    'pydub',
+    'pytz',
+    'scipy',
+    'scipy.signal',
+    'structlog',
+    'torch',
+    'torchaudio',
+    'torchvision',
+    'yaml',
+}
 for _dep in _OPTIONAL_DEPS:
     if _dep not in sys.modules:
         try:
             __import__(_dep)
         except ImportError:
-            sys.modules[_dep] = MagicMock()
+            _is_package = _dep in _OPTIONAL_PACKAGE_DEPS or any(
+                name.startswith(f"{_dep}.") for name in _OPTIONAL_DEPS
+            )
+            _stub = MagicMock()
+            _stub.__spec__ = ModuleSpec(_dep, loader=None, is_package=_is_package)
+            if _is_package:
+                _stub.__spec__.submodule_search_locations = []
+                _stub.__path__ = []
+            sys.modules[_dep] = _stub
 
 # Special handling for mcp modules: requires a proper FastMCP mock so that
 # @mcp.tool() decorators preserve the original functions rather than wrapping

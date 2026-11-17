@@ -190,7 +190,7 @@ class TestProcessFalsePositives:
         with patch("process_false_positives.get_model_inference") as mock_get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)) as mock_download, \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)) as mock_download, \
              patch("process_false_positives.add_training_3s_samples") as mock_add_training, \
              patch(
                  "process_false_positives.add_testing_60s_sample",
@@ -210,7 +210,7 @@ class TestProcessFalsePositives:
         mock_get_model.return_value.predict.assert_called_once_with(str(wav_path))
         mock_download.assert_called_once_with(
             node_name="rpi_test",
-            min_end_timestamp_pst_str="2025_01_01_04_01_02_PST",
+            start_timestamp_pst_str="2025_01_01_04_00_02_PST",
             tmp_dir=ANY,
         )
         mock_add_training.assert_not_called()
@@ -273,7 +273,7 @@ class TestProcessFalsePositives:
         with patch("process_false_positives.get_model_inference") as mock_get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch("process_false_positives.add_testing_60s_sample", return_value=testing_row):
             mock_get_model.return_value.predict.return_value = {
                 "global_prediction_label": "resident",
@@ -313,7 +313,7 @@ class TestProcessFalsePositives:
         with patch("process_false_positives.get_model_inference") as mock_get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch("process_false_positives.add_testing_60s_sample") as mock_add_testing:
             mock_get_model.return_value.predict.return_value = {
                 "global_prediction_label": "water",
@@ -362,7 +362,7 @@ class TestProcessFalsePositives:
              patch("process_false_positives.get_model_inference") as get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)) as mock_download, \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)) as mock_download, \
              patch("process_false_positives.add_training_3s_samples", return_value=[segment]):
             get_model.return_value.predict.return_value = {"global_prediction_label": "resident"}
             summary = process_false_positives(
@@ -374,7 +374,7 @@ class TestProcessFalsePositives:
         assert summary["overlaps"] == 1
         mock_download.assert_called_once_with(
             node_name="rpi_test",
-            min_end_timestamp_pst_str="2025_01_01_04_01_01_PST",
+            start_timestamp_pst_str="2025_01_01_04_00_01_PST",
             tmp_dir=ANY,
         )
 
@@ -400,7 +400,7 @@ class TestProcessFalsePositives:
         with patch("process_false_positives.get_model_inference") as mock_get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch(
                  "process_false_positives.add_training_3s_samples",
                  return_value=[
@@ -483,7 +483,7 @@ class TestProcessFalsePositives:
         with patch("process_false_positives.get_model_inference") as mock_get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch(
                  "process_false_positives.add_training_3s_samples",
                  return_value=[
@@ -545,7 +545,7 @@ class TestProcessFalsePositives:
         with patch("process_false_positives.get_model_inference") as mock_get_model, \
              patch("process_false_positives.get_orcasite_feeds_with_retry", return_value=[feed]), \
              patch("process_false_positives.get_machine_detections", return_value=[detection]), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch(
                  "process_false_positives.add_training_3s_samples",
                  return_value=[
@@ -636,7 +636,7 @@ class TestProcessFalsePositives:
                  "process_false_positives.get_machine_detections",
                  return_value=[next_detection, failed_detection],
              ), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch(
                  "process_false_positives.add_training_3s_samples",
                  side_effect=[
@@ -702,7 +702,7 @@ class TestProcessFalsePositives:
                  "process_false_positives.get_machine_detections",
                  return_value=[matching_detection, non_matching_detection],
              ), \
-             patch("process_false_positives.download_60s_audio", return_value=str(wav_path)), \
+             patch("process_false_positives.download_60s_audio_from_start", return_value=str(wav_path)), \
              patch(
                  "process_false_positives.add_training_3s_samples",
                  return_value=[

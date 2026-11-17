@@ -685,7 +685,7 @@ class TestAddSamples:
             "https://live.orcasound.net/bouts/new/test?time=2025-01-01T08%3A00%3A00.000Z"
         )
 
-    def test_uri_download_uses_orcasite_end_time_and_keeps_corrected_timestamp(self, tmp_path):
+    def test_uri_download_starts_at_corrected_timestamp(self, tmp_path):
         corrected_timestamp = "2025_01_01_00_00_02_PST"
         segment_path = tmp_path / f"rpi-test_{corrected_timestamp}.wav"
         segment_path.write_bytes(b"")
@@ -696,7 +696,7 @@ class TestAddSamples:
         }
 
         with patch("add_samples.get_node_name_from_slug", return_value="rpi_test"), patch(
-            "add_samples.download_60s_audio", return_value="fake.wav"
+            "audio_utils.download_audio_from_start_utc", return_value="fake.wav"
         ) as mock_download, patch(
             "add_samples.split_wav_into_segments",
             return_value=[(segment_path, corrected_timestamp)],
@@ -714,10 +714,11 @@ class TestAddSamples:
             )
 
         mock_download.assert_called_once()
-        assert mock_download.call_args.kwargs["node_name"] == "rpi_test"
-        assert mock_download.call_args.kwargs["min_end_timestamp_pst_str"] == (
-            "2025_01_01_00_01_02_PST"
+        assert mock_download.call_args.args[0] == "rpi_test"
+        assert mock_download.call_args.args[1] == datetime(
+            2025, 1, 1, 8, 0, 2, tzinfo=timezone.utc
         )
+        assert mock_download.call_args.args[3] == 60
         assert mock_split.call_args.kwargs["source_uri"] == source_uri
         assert rows[0]["StartTimestamp"] == corrected_timestamp
 
