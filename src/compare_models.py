@@ -939,13 +939,7 @@ def main() -> int:
         metadata_path=metadata_path,
         manifest_path=manifest_path,
         repo_path=Path(__file__).resolve().parent.parent,
-        allow_head_tag=(
-            uses_default_wav_dir
-            or bool(args.dataset_metadata)
-            or bool(args.dataset_manifest)
-            or metadata_path.exists()
-            or (manifest_path is not None and manifest_path.exists())
-        ),
+        allow_head_tag=uses_default_wav_dir,
     )
     for warning in dataset_metadata.warnings:
         print(f"Warning: {warning}", file=sys.stderr)

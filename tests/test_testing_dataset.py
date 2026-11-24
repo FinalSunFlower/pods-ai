@@ -80,6 +80,53 @@ def test_reads_version_and_optional_site_columns_from_csv(tmp_path):
     assert metadata.hydrophone_sites == ("lab", "mast")
 
 
+def test_legacy_node_name_column_is_not_reported_as_hydrophone_site(tmp_path):
+    manifest_path = tmp_path / "legacy-testing.csv"
+    manifest_path.write_text(
+        "Category,NodeName,StartTimestamp\n"
+        "resident,rpi_orcasound_lab,2026_01_02_03_04_05_PST\n",
+        encoding="utf-8",
+    )
+
+    metadata = load_testing_dataset_metadata(
+        manifest_path=manifest_path,
+        allow_head_tag=False,
+    )
+
+    assert metadata.hydrophone_sites == ()
+
+
+def test_invalid_utf8_json_metadata_is_nonfatal(tmp_path):
+    metadata_path = tmp_path / "dataset.json"
+    metadata_path.write_bytes(b'{"dataset_version":"\xff"}')
+
+    metadata = load_testing_dataset_metadata(
+        metadata_path=metadata_path,
+        allow_head_tag=False,
+    )
+
+    assert metadata.dataset_version == "unversioned"
+    assert any(
+        "could not read dataset metadata" in warning for warning in metadata.warnings
+    )
+
+
+def test_invalid_utf8_csv_manifest_is_nonfatal(tmp_path):
+    manifest_path = tmp_path / "testing.csv"
+    manifest_path.write_bytes(b"Category,Source ID\nresident,\xff\n")
+
+    metadata = load_testing_dataset_metadata(
+        manifest_path=manifest_path,
+        allow_head_tag=False,
+    )
+
+    assert metadata.dataset_version == "unversioned"
+    assert metadata.source_ids == ()
+    assert any(
+        "could not read dataset manifest" in warning for warning in metadata.warnings
+    )
+
+
 def test_tag_at_checked_out_commit_supplies_version(tmp_path, monkeypatch):
     def fake_run(command, **kwargs):
         assert command[-3:] == ["tag", "--points-at", "HEAD"]
@@ -115,6 +162,26 @@ def test_sidecar_tag_overrides_inconsistent_version(tmp_path):
     assert metadata.dataset_version == "v2.0.0"
     assert metadata.git_tag == "TestingDataset.v2.0.0"
     assert any("does not match" in warning for warning in metadata.warnings)
+
+
+def test_sidecar_version_has_precedence_over_manifest_tag(tmp_path):
+    metadata_path = tmp_path / "dataset.json"
+    metadata_path.write_text(json.dumps({"dataset_version": "2.0.0"}), encoding="utf-8")
+    manifest_path = tmp_path / "testing.csv"
+    manifest_path.write_text(
+        "Category,git_tag\nresident,TestingDataset.v1.0.0\n",
+        encoding="utf-8",
+    )
+
+    metadata = load_testing_dataset_metadata(
+        metadata_path=metadata_path,
+        manifest_path=manifest_path,
+        allow_head_tag=False,
+    )
+
+    assert metadata.dataset_version == "v2.0.0"
+    assert metadata.git_tag is None
+    assert any("ignoring manifest git_tag" in warning for warning in metadata.warnings)
 
 
 def test_legacy_dataset_without_metadata_is_unversioned(tmp_path):

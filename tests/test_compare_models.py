@@ -1673,3 +1673,27 @@ def test_main_legacy_dataset_reports_unversioned_without_failing(tmp_path, capsy
 
     output = capsys.readouterr().out
     assert output.count("dataset_version: unversioned") == 2
+
+
+def test_custom_wav_dir_does_not_inherit_repository_head_tag(tmp_path, capsys):
+    """A custom dataset with provenance only stays unversioned without probing HEAD."""
+    from compare_models import ModelResult, main
+
+    wav_dir = tmp_path / "custom-testing-wav"
+    _make_wav(wav_dir, "resident")
+    (wav_dir / "dataset.json").write_text(
+        '{"source_id":"archive-only"}',
+        encoding="utf-8",
+    )
+    args = ["compare_models.py", "--wav-dir", str(wav_dir), "--models", "podsai"]
+
+    with patch.object(sys, "argv", args), \
+        patch("compare_models.get_model_inference", return_value=object()), \
+        patch("compare_models.evaluate_model", return_value=ModelResult("podsai")), \
+        patch("testing_dataset.subprocess.run") as git_run:
+        assert main() == 0
+
+    git_run.assert_not_called()
+    output = capsys.readouterr().out
+    assert output.count("dataset_version: unversioned") == 2
+    assert "source_id: archive-only" in output

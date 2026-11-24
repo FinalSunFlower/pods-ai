@@ -72,7 +72,7 @@ def _read_json_metadata(path: Path) -> tuple[dict[str, Any], list[str]]:
     try:
         with path.open(encoding="utf-8") as handle:
             data = json.load(handle)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         return {}, [f"could not read dataset metadata {path}: {exc}"]
     if not isinstance(data, dict):
         return {}, [f"dataset metadata {path} must contain a JSON object"]
@@ -103,13 +103,9 @@ def _read_manifest_metadata(path: Path) -> tuple[dict[str, Any], list[str]]:
                 tags.extend(_as_values(values.get("gittag")))
                 sources.extend(_as_values(values.get("sourceid")))
                 sites.extend(
-                    _as_values(
-                        values.get("hydrophonesite")
-                        or values.get("site")
-                        or values.get("nodename")
-                    )
+                    _as_values(values.get("hydrophonesite") or values.get("site"))
                 )
-    except (OSError, csv.Error) as exc:
+    except (OSError, UnicodeError, csv.Error) as exc:
         return {}, [f"could not read dataset manifest {path}: {exc}"]
     return {
         "dataset_version": tuple(dict.fromkeys(versions)),
@@ -180,7 +176,10 @@ def load_testing_dataset_metadata(
         manifest, read_warnings = _read_manifest_metadata(manifest_path)
         warnings.extend(read_warnings)
 
-    declared_tag = _field_values(metadata, "git_tag") or manifest.get("git_tag", ())
+    metadata_tags = _field_values(metadata, "git_tag")
+    manifest_tags = manifest.get("git_tag", ())
+    declared_tag = metadata_tags or manifest_tags
+    tag_source = "metadata" if metadata_tags else "manifest"
     tag = declared_tag[0] if len(declared_tag) == 1 else None
     tagged_version = _tag_version(tag)
     if tag and tagged_version is None:
@@ -190,6 +189,7 @@ def load_testing_dataset_metadata(
         tag = None
 
     version: Optional[str] = None
+    version_source: Optional[str] = None
     version_fields = (
         (_field_values(metadata, "dataset_version"), "metadata dataset_version"),
         (_field_values(metadata, "version"), "metadata version"),
@@ -203,17 +203,31 @@ def load_testing_dataset_metadata(
             continue
         version = _normalize_version(declared_versions[0])
         if version is not None:
+            version_source = source
             break
         warnings.append(
             f"ignoring invalid dataset version {declared_versions[0]!r}; expected semantic version MAJOR.MINOR.PATCH"
         )
 
     if tagged_version is not None:
-        if version is not None and version != tagged_version:
+        if (
+            version is not None
+            and version_source is not None
+            and version_source.startswith("metadata")
+            and tag_source == "manifest"
+            and version != tagged_version
+        ):
             warnings.append(
-                f"dataset version {version} does not match git tag {tag}; using tag version"
+                f"ignoring manifest git_tag {tag} because sidecar dataset version "
+                f"{version} has higher precedence"
             )
-        version = tagged_version
+            tag = None
+        else:
+            if version is not None and version != tagged_version:
+                warnings.append(
+                    f"dataset version {version} does not match git tag {tag}; using tag version"
+                )
+            version = tagged_version
     elif version is None and allow_head_tag:
         tag = _tag_at_head(repo_path)
         version = _tag_version(tag)
