@@ -97,14 +97,16 @@ def _read_manifest_metadata(path: Path) -> tuple[dict[str, Any], list[str]]:
                 values = {
                     _normalized_csv_header(key): value for key, value in row.items()
                 }
-                versions.extend(
-                    _as_values(values.get("datasetversion") or values.get("version"))
+                version_values = _as_values(values.get("datasetversion")) or _as_values(
+                    values.get("version")
                 )
+                versions.extend(version_values)
                 tags.extend(_as_values(values.get("gittag")))
                 sources.extend(_as_values(values.get("sourceid")))
-                sites.extend(
-                    _as_values(values.get("hydrophonesite") or values.get("site"))
+                site_values = _as_values(values.get("hydrophonesite")) or _as_values(
+                    values.get("site")
                 )
+                sites.extend(site_values)
     except (OSError, UnicodeError, csv.Error) as exc:
         return {}, [f"could not read dataset manifest {path}: {exc}"]
     return {
@@ -178,15 +180,30 @@ def load_testing_dataset_metadata(
 
     metadata_tags = _field_values(metadata, "git_tag")
     manifest_tags = manifest.get("git_tag", ())
-    declared_tag = metadata_tags or manifest_tags
-    tag_source = "metadata" if metadata_tags else "manifest"
-    tag = declared_tag[0] if len(declared_tag) == 1 else None
-    tagged_version = _tag_version(tag)
-    if tag and tagged_version is None:
-        warnings.append(
-            f"ignoring invalid dataset git_tag {tag!r}; expected TestingDataset.v<semver>"
-        )
-        tag = None
+    tag: Optional[str] = None
+    tag_source: Optional[str] = None
+    tagged_version: Optional[str] = None
+    for candidate_tags, source in (
+        (metadata_tags, "metadata"),
+        (manifest_tags, "manifest"),
+    ):
+        if len(candidate_tags) != 1:
+            if candidate_tags:
+                warnings.append(
+                    f"ignoring inconsistent dataset git_tag values in {source}"
+                )
+            continue
+        candidate = candidate_tags[0]
+        candidate_version = _tag_version(candidate)
+        if candidate_version is None:
+            warnings.append(
+                f"ignoring invalid dataset git_tag {candidate!r}; expected TestingDataset.v<semver>"
+            )
+            continue
+        tag = candidate
+        tag_source = source
+        tagged_version = candidate_version
+        break
 
     version: Optional[str] = None
     version_source: Optional[str] = None
